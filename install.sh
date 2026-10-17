@@ -6,7 +6,24 @@
 
 set -euo pipefail
 
-ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" 2>/dev/null && pwd || pwd)"
+
+# Bootstrap repository files if executed standalone via curl | bash
+CLEANUP_TEMP=false
+if [[ ! -d "$ROOT/mods" || ! -f "$ROOT/version/ShtarOS/ShtarOS.json.template" ]]; then
+    echo "📦 Repository files not found locally. Downloading ShtarOS from GitHub..."
+    TEMP_DIR="$(mktemp -d /tmp/shtaros-install-XXXXXX 2>/dev/null || mktemp -d -t shtaros-install)"
+    if command -v git >/dev/null 2>&1; then
+        git clone --depth=1 https://github.com/Akshat-xe/shtaros.git "$TEMP_DIR"
+    else
+        echo "   📥 Git not found, downloading archive via curl..."
+        curl -fsSL https://github.com/Akshat-xe/shtaros/archive/refs/heads/main.tar.gz | tar -xz -C "$TEMP_DIR" --strip-components=1
+    fi
+    ROOT="$TEMP_DIR"
+    CLEANUP_TEMP=true
+    trap 'if [[ "$CLEANUP_TEMP" == "true" ]]; then rm -rf "$TEMP_DIR"; fi' EXIT
+fi
+
 
 echo "============================================================"
 echo "    🚀 SHTAROS ALL-IN-ONE MINECRAFT INSTALLER"

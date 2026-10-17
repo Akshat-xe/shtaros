@@ -13,13 +13,21 @@
 
 Anyone can install the complete ShtarOS system with a single command. It creates a dedicated, isolated version profile called **`ShtarOS`** in your launcher so **nothing conflicts** with your existing Minecraft versions, mods, or profiles.
 
-### Option A: Via Terminal (Fastest)
+### Option A: Direct Command-Line Download & Install (Instant 1-Liner)
+
+Open Terminal and paste this single command to download and install automatically:
+
+```bash
+/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Akshat-xe/shtaros/main/install.sh)"
+```
+
+### Option B: Clone & Install via Terminal
 
 ```bash
 git clone https://github.com/Akshat-xe/shtaros.git && cd shtaros && ./install.sh
 ```
 
-### Option B: Via Double-Click (macOS Finder)
+### Option C: Via Double-Click (macOS Finder)
 
 1. Download or clone this repository.
 2. Open the folder in Finder.
