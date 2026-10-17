@@ -8,6 +8,7 @@ import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.FloatBuffer;
 import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -17,8 +18,8 @@ public final class ShtarOSBrowserSurroundFeed implements ShtarOSSpeakerFeed {
     // Bounded hardware buffers provide a solid continuous audio reserve in OpenAL
     // so game tick jitters and CEF frame rendering never starve the speakers.
     private static final int MAX_STREAM_BUFFER_BYTES = 16384;
-    private static final int MAX_QUEUED_AUDIO_MS = 2000;
-    private static final int PRIME_AUDIO_MS = 350;
+    private static final int MAX_QUEUED_AUDIO_MS = 2500;
+    private static final int PRIME_AUDIO_MS = 500;
     private final ArrayBlockingQueue<byte[]>[] queues;
     private final SpeakerStream[] streams = new SpeakerStream[SPEAKERS];
     private final AtomicInteger activeMask;
@@ -70,17 +71,19 @@ public final class ShtarOSBrowserSurroundFeed implements ShtarOSSpeakerFeed {
             float l = clean(left.get(i));
             float r = clean(right.get(i));
             float mid = .5f * (l + r);
-            float side = .5f * (l - r);
-            // Shared center content (often speech) stays at the front. Sending
-            // the same voice loudly to eight positions smears its localization.
-            write(pcm[0], i, .85f * l);
-            write(pcm[1], i, .85f * r);
-            write(pcm[2], i, .05f * mid + .32f * side);
-            write(pcm[3], i, .04f * mid + .22f * side);
-            write(pcm[4], i, .05f * mid - .32f * side);
-            write(pcm[5], i, .04f * mid - .22f * side);
-            write(pcm[6], i, .03f * mid + .15f * side);
-            write(pcm[7], i, .03f * mid - .15f * side);
+            // 8D Surround Audio Distribution Matrix:
+            // Front speakers provide direct front stage clarity (92% direct, 8% cross-bleed).
+            // Side speakers deliver rich, enveloping surround acoustics (80-85% channel weight + center).
+            // Rear speakers deliver deep 360-degree ambience (75% channel weight + center).
+            // OpenAL in Minecraft performs the 3D world-coordinate HRTF positioning naturally.
+            write(pcm[0], i, .92f * l + .08f * r);
+            write(pcm[1], i, .92f * r + .08f * l);
+            write(pcm[2], i, .85f * l + .15f * mid);
+            write(pcm[3], i, .80f * l + .20f * mid);
+            write(pcm[4], i, .85f * r + .15f * mid);
+            write(pcm[5], i, .80f * r + .20f * mid);
+            write(pcm[6], i, .75f * l + .25f * mid);
+            write(pcm[7], i, .75f * r + .25f * mid);
         }
         int mask = activeMask.get();
         int maxPackets = Math.max(8, Math.min(128,
@@ -146,13 +149,15 @@ public final class ShtarOSBrowserSurroundFeed implements ShtarOSSpeakerFeed {
 
         @Override public ByteBuffer read(int size) throws IOException {
             if (closed) return null;
-            // Minecraft requests up to a second. 6144 bytes is about 70 ms
-            // at 44.1 kHz mono, enough to cross a game tick without a large lag.
-            int target = Math.max(2, Math.min(size & ~1, MAX_STREAM_BUFFER_BYTES));
+            int target = Math.max(2048, Math.min(size & ~1, MAX_STREAM_BUFFER_BYTES));
             ByteBuffer buffer = ByteBuffer.allocateDirect(target).order(ByteOrder.LITTLE_ENDIAN);
-            while (buffer.hasRemaining()) {
+            while (buffer.hasRemaining() && !closed) {
                 if (pending == null || offset == pending.length) {
-                    pending = queues[index].poll();
+                    try {
+                        pending = queues[index].poll(buffer.position() > 0 ? 0 : 35, TimeUnit.MILLISECONDS);
+                    } catch (InterruptedException e) {
+                        break;
+                    }
                     offset = 0;
                     if (pending == null) break;
                 }
@@ -162,24 +167,18 @@ public final class ShtarOSBrowserSurroundFeed implements ShtarOSSpeakerFeed {
             }
             int audioBytes = buffer.position();
             if (index == 0) framesRead += audioBytes / 2;
-            // OpenAL asks for four buffers at startup. Returning null when
-            // capture has no more samples leaves that slot unqueued; a padded
-            // silent buffer would play *after* fresh packets have arrived.
             if (audioBytes == 0) {
                 if (index == 0) emptyReads++;
-                if (!finished && !closed) {
-                    // Conceal underrun with a tiny silence buffer (256 frames = 512 bytes = ~5.8ms)
-                    // This keeps the OpenAL hardware source in AL_PLAYING state without clicks or pops,
-                    // allowing fresh incoming audio packets to continue seamlessly without channel tear-down!
-                    ByteBuffer silence = ByteBuffer.allocateDirect(512).order(ByteOrder.LITTLE_ENDIAN);
-                    for (int i = 0; i < 256; i++) silence.putShort((short) 0);
+                if (finished) return null;
+                if (!closed) {
+                    // Safe 4096-byte silence cushion (46ms) to keep OpenAL hardware playing without underrun stutter
+                    ByteBuffer silence = ByteBuffer.allocateDirect(4096).order(ByteOrder.LITTLE_ENDIAN);
+                    for (int i = 0; i < 2048; i++) silence.putShort((short) 0);
                     silence.flip();
                     return silence;
                 }
                 return null;
             }
-            // A network/render stall may leave part of a buffer empty. Fade at
-            // that boundary rather than cutting a nonzero waveform to silence.
             if (audioBytes > 0 && fadingIn) fade(buffer, 0, Math.min(128, audioBytes / 2), true);
             if (audioBytes < target) {
                 if (audioBytes > 0) fade(buffer, audioBytes / 2 - Math.min(128, audioBytes / 2),

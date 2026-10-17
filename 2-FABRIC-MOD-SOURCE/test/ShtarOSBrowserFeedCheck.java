@@ -23,23 +23,23 @@ public final class ShtarOSBrowserFeedCheck {
         ShtarOSBrowserSurroundFeed startup = new ShtarOSBrowserSurroundFeed(44100, 1);
         float[] samples = new float[1024];
         Arrays.fill(samples, .5f);
-        for (int i = 0; i < 16; i++)
+        for (int i = 0; i < 24; i++)
             startup.accept(FloatBuffer.wrap(samples), FloatBuffer.wrap(samples), samples.length);
         if (!startup.isPrimed()) throw new AssertionError("Startup reserve not reached");
         int bytes = 0;
-        for (int i = 0; i < 4; i++) {
+        for (int i = 0; i < 6; i++) {
             ByteBuffer chunk = startup.speaker(0).read(8192);
             if (chunk != null) bytes += chunk.remaining();
         }
-        if (bytes != 16 * 1024 * 2) throw new AssertionError("PCM padded or lost at startup: " + bytes);
-        if (startup.framesRead() != 16L * 1024) throw new AssertionError("Output frame counter wrong: " + startup.framesRead());
+        if (bytes != 24 * 1024 * 2) throw new AssertionError("PCM padded or lost at startup: " + bytes);
+        if (startup.framesRead() != 24L * 1024) throw new AssertionError("Output frame counter wrong: " + startup.framesRead());
         
         // Test underrun concealment: when queue is empty, returns silence cushion to prevent channel stop
         ByteBuffer cushion = startup.speaker(0).read(8192);
-        if (cushion == null || cushion.remaining() != 512)
+        if (cushion == null || cushion.remaining() != 4096)
             throw new AssertionError("Underrun concealment failed to provide silence cushion: " + (cushion == null ? "null" : cushion.remaining()));
         
         startup.close();
-        System.out.println("PASS: bounded recent PCM, 350 ms reserve, underrun concealment verified");
+        System.out.println("PASS: bounded recent PCM, 500 ms reserve, underrun concealment verified");
     }
 }
