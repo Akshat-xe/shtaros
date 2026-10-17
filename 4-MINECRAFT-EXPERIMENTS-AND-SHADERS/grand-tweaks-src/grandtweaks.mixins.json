@@ -1,0 +1,16 @@
+{
+  "required": true,
+  "minVersion": "0.8",
+  "package": "grandtweaks.mixin",
+  "compatibilityLevel": "JAVA_25",
+  "client": [
+    "VideoSettingsMixin",
+    "PauseScreenMixin",
+    "KeyboardHandlerMixin",
+    "CameraMixin",
+    "MouseHandlerMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}

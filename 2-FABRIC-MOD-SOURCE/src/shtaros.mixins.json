@@ -1,0 +1,20 @@
+{
+  "required": true,
+  "minVersion": "0.8",
+  "package": "shtaros.mixin",
+  "compatibilityLevel": "JAVA_25",
+  "client": [
+    "SoundEngineAccessor",
+    "SoundManagerAccessor",
+    "ChannelAccessor",
+    "CameraMixin",
+    "MultiPlayerGameModeMixin",
+    "MinecraftTickMixin",
+    "FramerateLimitTrackerMixin",
+    "MouseHandlerMixin",
+    "KeyboardHandlerMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}

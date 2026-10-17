@@ -1,0 +1,14 @@
+SHTAROS 2.0.0 — MINECRAFT JAVA 26.3 / FABRIC / MACOS
+
+1. Install Minecraft Java 26.3 with Fabric Loader 0.19.5+ and Java 25.
+2. Install Python 3.10+ and FFmpeg (Homebrew: brew install python ffmpeg).
+3. Run release/ShtarOS-2.0.0-macos/install-shtaros.command.
+   For a custom launcher game folder, pass its absolute path as the first argument.
+4. Restart Minecraft in the Fabric 26.3 profile. Press I for setup.
+5. Face the planned screen and use /shtaros setup. Use /shtaros <url>
+   to open a website on the screen. Right-click a jukebox for music only.
+
+The installer places ShtarOS, Rinku, and Fabric API in mods, and its local
+media service in the game's shtaros folder. Rinku is a separate LGPL component.
+The latest audio-buffer change has passed compilation and a PCM test but still
+needs an in-game listening check after restart.

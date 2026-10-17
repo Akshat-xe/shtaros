@@ -1,0 +1,14 @@
+.DS_Store
+.env
+.env.*
+!.env.example
+**/venv/
+**/__pycache__/
+**/*.pyc
+**/*.class
+**/build_output/
+**/*.log
+**/*.pid
+2-FABRIC-MOD-SOURCE/mineos-1.0.0.jar
+.plan.md
+/saves/

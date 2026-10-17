@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "id": "grandtweaks",
+  "version": "1.0.0",
+  "name": "Grand Tweaks",
+  "description": "In-game settings and tuning UI for mcopt and graphics.",
+  "authors": [
+    "Slayer"
+  ],
+  "environment": "client",
+  "entrypoints": {
+    "client": [
+      "grandtweaks.GrandTweaksMod"
+    ]
+  },
+  "mixins": [
+    "grandtweaks.mixins.json"
+  ],
+  "depends": {
+    "fabricloader": ">=0.19.5",
+    "minecraft": "~26.3"
+  }
+}

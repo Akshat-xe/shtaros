@@ -1,0 +1,24 @@
+ShtarOS project map
+
+README.md                         Quick start, checkpoint state, current behavior.
+SYSTEM_GUIDE.md                   Plain-English system architecture and operating guide.
+PLAYBACK_AUDIT.md                 Measured browser audio/video path, findings, fixes, and live-check protocol.
+QUICK_START_GUIDE.txt             Short launch instructions.
+.plan.md                          Development plan and verification notes.
+saves/checkpoint-1-2026-10-17/    Preserved pre-browser checkpoint; do not edit.
+saves/checkpoint-2-2026-10-17/    Frozen ShtarOS source and installable release.
+release/ShtarOS-2.0.0-macos/     Mac installer, three mod JARs, media service, licenses.
+release/ShtarOS-2.0.0-macos.zip  Single shareable installation archive.
+
+1-READY-TO-PLAY/                 Locally built ShtarOS JAR; use the release installer for full setup.
+2-FABRIC-MOD-SOURCE/             Java Fabric 26.3 client mod and build script.
+  src/shtaros/browser/             Rinku/JCEF bridge, screen targeting, audio capture, browser UI.
+  src/shtaros/cinema/              Theater layout, block binding, screen renderer, video, 8 speakers.
+  src/shtaros/audio/               Browser/daemon PCM feeds and standalone jukebox audio.
+  src/shtaros/gui/                 I-key cinema remote and jukebox search screen.
+  src/shtaros/mixin/               Minecraft input/render/audio hooks.
+    ChannelAccessor.java          Reads OpenAL queue ownership for safe browser underrun recovery.
+  BROWSER_RESEARCH.md             Browser integration research and code notes.
+3-STREAMING-DAEMON-BACKEND/      Python search and FFmpeg/yt-dlp source; installer copies it into the game directory.
+4-MINECRAFT-EXPERIMENTS-AND-SHADERS/  Other installed mod/shader experiments.
+5-ARCHIVE-AND-PREVIOUS-BUILDS/   Older artifacts and test scripts.

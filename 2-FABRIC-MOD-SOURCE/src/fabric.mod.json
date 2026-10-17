@@ -1,0 +1,25 @@
+{
+  "schemaVersion": 1,
+  "id": "shtaros",
+  "version": "2.0.0",
+  "name": "ShtarOS Cinema & Spatial Surround",
+  "description": "In-world 16:9 video cinema with eight physical OpenAL speaker sources and a block-built theater.",
+  "authors": [
+    "Slayer"
+  ],
+  "environment": "client",
+  "entrypoints": {
+    "client": [
+      "shtaros.ShtarOSMod"
+    ]
+  },
+  "mixins": [
+    "shtaros.mixins.json"
+  ],
+  "depends": {
+    "fabricloader": ">=0.19.5",
+    "minecraft": "~26.3",
+    "fabric-api": ">=0.163.0",
+    "rinku": ">=3.0.5"
+  }
+}

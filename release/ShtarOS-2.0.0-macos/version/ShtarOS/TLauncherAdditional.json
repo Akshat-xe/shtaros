@@ -1,0 +1,8 @@
+{
+  "activateSkinCapeForUserVersion": false,
+  "skipHashsumValidation": true,
+  "tlauncherVersion": 0,
+  "source": "local_version_repo",
+  "jar": "26.3",
+  "skinVersion": false
+}
