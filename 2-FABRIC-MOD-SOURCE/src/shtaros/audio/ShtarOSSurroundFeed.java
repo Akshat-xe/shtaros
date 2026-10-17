@@ -151,11 +151,15 @@ public final class ShtarOSSurroundFeed implements ShtarOSSpeakerFeed {
 
         @Override public ByteBuffer read(int size) throws IOException {
             if (!running) return null;
-            int target = Math.max(2, Math.min(size & ~1, 16384));
+            int target = Math.max(2048, Math.min(size & ~1, 16384));
             ByteBuffer buffer = ByteBuffer.allocateDirect(target).order(ByteOrder.LITTLE_ENDIAN);
-            while (buffer.hasRemaining()) {
+            while (buffer.hasRemaining() && running) {
                 if (pending == null || offset == pending.length) {
-                    pending = queues[index].poll();
+                    try {
+                        pending = queues[index].poll(buffer.position() > 0 ? 0 : 35, TimeUnit.MILLISECONDS);
+                    } catch (InterruptedException e) {
+                        break;
+                    }
                     offset = 0;
                     if (pending == null) break;
                 }
@@ -163,8 +167,13 @@ public final class ShtarOSSurroundFeed implements ShtarOSSpeakerFeed {
                 buffer.put(pending, offset, n);
                 offset += n;
             }
-            if (buffer.position() == 0 && finished) return null;
-            while (buffer.hasRemaining()) buffer.put((byte) 0);
+            if (buffer.position() == 0) {
+                if (finished) return null;
+                ByteBuffer silence = ByteBuffer.allocateDirect(4096).order(ByteOrder.LITTLE_ENDIAN);
+                for (int i = 0; i < 2048; i++) silence.putShort((short) 0);
+                silence.flip();
+                return silence;
+            }
             buffer.flip();
             return buffer;
         }
