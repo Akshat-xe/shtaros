@@ -23,9 +23,10 @@ public final class ShtarOSBrowserBridge {
     // Keep the world display modest so video does not stall the game render thread.
     private static int currentWidth = 960;
     private static int currentHeight = 540;
-    private static int requestedFrameRate = 60;
+    private static int requestedFrameRate = 30;
     private static long nextFrameRateCheck;
     private static long lastVideoStatsNanos;
+    private static long lastSentMouseMoveNanos;
     private static int lowFpsSamples;
     private static int highFpsSamples;
     private static final long POINTER_IDLE_NANOS = 5_000_000_000L;
@@ -112,7 +113,7 @@ public final class ShtarOSBrowserBridge {
             ShtarOSBrowserAudioCapture.setTarget(created);
             browserClass = created.getClass();
             error = "";
-            requestedFrameRate = 60;
+            requestedFrameRate = 30;
             nextFrameRateCheck = 0;
             lowFpsSamples = 0;
             highFpsSamples = 0;
@@ -183,13 +184,12 @@ public final class ShtarOSBrowserBridge {
                     + ", paintLimit=" + requestedFrameRate
                     + ", view=" + currentWidth + "x" + currentHeight);
         }
-        lowFpsSamples = gameFps < 40 ? lowFpsSamples + 1 : 0;
-        highFpsSamples = gameFps >= 55 ? highFpsSamples + 1 : 0;
-        int target = lowFpsSamples >= 2 ? 30 : highFpsSamples >= 2 ? 60 : requestedFrameRate;
+        // Keep CEF paint limit locked to 30 FPS for silky-smooth in-world streaming without GPU congestion
+        int target = 30;
         if (target != requestedFrameRate) {
             requestedFrameRate = target;
             call("setWindowlessFrameRate", new Class<?>[]{int.class}, target);
-            System.out.println("[ShtarOS Browser] Paint limit " + target + " FPS (game " + gameFps + " FPS)");
+            System.out.println("[ShtarOS Browser] Paint limit locked to " + target + " FPS");
         }
     }
     public static void focus() {
@@ -221,6 +221,13 @@ public final class ShtarOSBrowserBridge {
     }
     public static void mouseMove(int x, int y) {
         if (x == lastPointerX && y == lastPointerY && !physicalPointerMoved) return;
+        long now = System.nanoTime();
+        // Rate-limit in-world mouse move IPC to at most 20 Hz (50 ms) unless physical pointer moved or distance > 4 px
+        if (!physicalPointerMoved && now - lastSentMouseMoveNanos < 50_000_000L
+                && Math.abs(x - lastPointerX) < 4 && Math.abs(y - lastPointerY) < 4) {
+            return;
+        }
+        lastSentMouseMoveNanos = now;
         restorePointer(x, y);
     }
     public static void notePhysicalPointerMove() {
