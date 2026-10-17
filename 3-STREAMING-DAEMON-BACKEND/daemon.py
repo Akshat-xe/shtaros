@@ -310,15 +310,20 @@ def stream_surround(video_id):
     start = min(21600, max(0, int(request.args.get("start", "0"))))
 
     yt_cmd = [*YT_DLP_CMD, "-f", "bestaudio/best", "-o", "-", "--quiet", "--no-warnings", target]
-    # Front speakers retain stereo. Side and rear feeds emphasize stereo difference,
-    # keeping centered vocals at the screen; each group gets a restrained EQ band.
+    # 8D Surround Audio Distribution Matrix:
+    # Front speakers provide direct front stage clarity (92% direct, 8% cross-bleed).
+    # Side speakers deliver rich, enveloping surround acoustics (80-85% channel weight + center).
+    # Rear speakers deliver deep 360-degree ambience (75% channel weight + center).
+    # OpenAL in Minecraft performs the 3D world-coordinate HRTF positioning naturally.
     pan = ("aformat=channel_layouts=stereo,"
-           "pan=8c|c0=c0|c1=c1|c2=0.45*c0-0.30*c1|c3=0.30*c0-0.20*c1|"
-           "c4=0.45*c1-0.30*c0|c5=0.30*c1-0.20*c0|"
-           "c6=0.25*c0-0.18*c1|c7=0.25*c1-0.18*c0,"
-           "anequalizer=c2 f=160 w=160 g=-6|c3 f=160 w=160 g=-6|"
-           "c4 f=160 w=160 g=-6|c5 f=160 w=160 g=-6|"
-           "c6 f=9000 w=5000 g=-8|c7 f=9000 w=5000 g=-8")
+           "pan=8c|c0=0.92*c0+0.08*c1|"
+           "c1=0.92*c1+0.08*c0|"
+           "c2=0.85*c0+0.15*c1|"
+           "c3=0.80*c0+0.20*c1|"
+           "c4=0.85*c1+0.15*c0|"
+           "c5=0.80*c1+0.20*c0|"
+           "c6=0.75*c0+0.25*c1|"
+           "c7=0.75*c1+0.25*c0")
     ff_cmd = [FFMPEG_BIN, "-loglevel", "error", "-nostdin", "-i", "pipe:0",
               "-ss", str(start), "-vn", "-af", pan,
               "-ar", "44100", "-c:a", "pcm_s16le", "-f", "s16le", "pipe:1"]
@@ -434,7 +439,67 @@ def stream_video(video_id):
     )
 
 
+def enforce_mac_audio_integrity():
+    """Ensure Bluetooth output stays in high-fidelity A2DP stereo mode by routing default input to built-in mic."""
+    if sys.platform != "darwin":
+        return
+    try:
+        import ctypes
+        from ctypes import c_uint32, c_void_p, byref, sizeof, Structure
+
+        ca = ctypes.cdll.LoadLibrary("/System/Library/Frameworks/CoreAudio.framework/CoreAudio")
+        cf = ctypes.cdll.LoadLibrary("/System/Library/Frameworks/CoreFoundation.framework/CoreFoundation")
+
+        class AudioObjectPropertyAddress(Structure):
+            _fields_ = [
+                ("mSelector", c_uint32),
+                ("mScope", c_uint32),
+                ("mElement", c_uint32),
+            ]
+
+        kAudioObjectSystemObject = 1
+        kAudioHardwarePropertyDevices = 0x64657623
+        kAudioObjectPropertyScopeGlobal = 0x676c6f62
+        kAudioObjectPropertyElementMain = 0
+        kAudioDevicePropertyDeviceNameCFString = 0x6c6e616d
+        kAudioHardwarePropertyDefaultInputDevice = 0x64496e20
+
+        addr = AudioObjectPropertyAddress(kAudioHardwarePropertyDevices, kAudioObjectPropertyScopeGlobal, kAudioObjectPropertyElementMain)
+        data_size = c_uint32(0)
+        if ca.AudioObjectGetPropertyDataSize(kAudioObjectSystemObject, byref(addr), 0, None, byref(data_size)) != 0:
+            return
+
+        num_devices = data_size.value // sizeof(c_uint32)
+        device_ids = (c_uint32 * num_devices)()
+        ca.AudioObjectGetPropertyData(kAudioObjectSystemObject, byref(addr), 0, None, byref(data_size), byref(device_ids))
+
+        cf.CFStringGetCString.argtypes = [c_void_p, ctypes.c_char_p, ctypes.c_long, c_uint32]
+        cf.CFStringGetCString.restype = ctypes.c_bool
+        kCFStringEncodingUTF8 = 0x08000100
+
+        builtin_mic = None
+        for dev in device_ids:
+            name_addr = AudioObjectPropertyAddress(kAudioDevicePropertyDeviceNameCFString, kAudioObjectPropertyScopeGlobal, kAudioObjectPropertyElementMain)
+            cf_name = c_void_p(0)
+            name_size = c_uint32(sizeof(c_void_p))
+            ca.AudioObjectGetPropertyData(dev, byref(name_addr), 0, None, byref(name_size), byref(cf_name))
+            buf = ctypes.create_string_buffer(256)
+            cf.CFStringGetCString(cf_name, buf, 256, kCFStringEncodingUTF8)
+            dev_name = buf.value.decode("utf-8", errors="ignore")
+            if any(term in dev_name for term in ["MacBook Air Microphone", "Built-in", "Internal Microphone"]):
+                builtin_mic = dev
+                break
+
+        if builtin_mic:
+            set_addr = AudioObjectPropertyAddress(kAudioHardwarePropertyDefaultInputDevice, kAudioObjectPropertyScopeGlobal, kAudioObjectPropertyElementMain)
+            ca.AudioObjectSetPropertyData(kAudioObjectSystemObject, byref(set_addr), 0, None, sizeof(c_uint32), byref(c_uint32(builtin_mic)))
+            logger.info("Enforced macOS CoreAudio input to built-in mic (safeguards Bluetooth stereo quality)")
+    except Exception as e:
+        logger.debug(f"Audio integrity guard skipped: {e}")
+
+
 if __name__ == "__main__":
     port = 25592
+    enforce_mac_audio_integrity()
     logger.info(f"Starting ShtarOS Cinema Daemon on http://127.0.0.1:{port}")
     app.run(host="127.0.0.1", port=port, threaded=True)
