@@ -10,7 +10,6 @@
     "CameraMixin",
     "MultiPlayerGameModeMixin",
     "MinecraftTickMixin",
-    "FramerateLimitTrackerMixin",
     "MouseHandlerMixin",
     "KeyboardHandlerMixin"
   ],
