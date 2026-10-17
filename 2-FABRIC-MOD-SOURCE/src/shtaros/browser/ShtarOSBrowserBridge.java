@@ -12,7 +12,7 @@ import java.util.UUID;
 
 /** Optional bridge to Rinku. ShtarOS still builds and plays its original streams without it. */
 public final class ShtarOSBrowserBridge {
-    private static final String HOME = "https://duckduckgo.com/";
+    private static final String HOME = "https://search.brave.com/";
     private static final String FOCUS_PREFIX = "shtaros-focus-" + UUID.randomUUID() + ":";
     private static Object browser;
     private static Object displayHandler;
@@ -92,6 +92,9 @@ public final class ShtarOSBrowserBridge {
         }
         try {
             Class<?> api = Class.forName("de.keksuccino.rinku.Rinku");
+            for (int wait = 0; wait < 15 && !(boolean) api.getMethod("isInitialized").invoke(null); wait++) {
+                try { Thread.sleep(200); } catch (InterruptedException ignored) {}
+            }
             if (!(boolean) api.getMethod("isInitialized").invoke(null)) {
                 error = "The browser is still starting. Try again shortly.";
                 return false;

@@ -32,7 +32,9 @@ echo "============================================================"
 
 # 1. Determine Target Minecraft Directory
 OS="$(uname -s)"
-if [[ "$OS" == "Darwin" ]]; then
+if [[ -f "./launcher_profiles.json" || -d "./versions" ]]; then
+    DEFAULT_GAME_DIR="$(pwd)"
+elif [[ "$OS" == "Darwin" ]]; then
     DEFAULT_GAME_DIR="$HOME/Library/Application Support/minecraft"
 elif [[ "$OS" == "Linux" ]]; then
     DEFAULT_GAME_DIR="$HOME/.minecraft"
@@ -229,21 +231,25 @@ with open(profiles_file, "w", encoding="utf-8") as f:
 print("   ✅ Registered 'ShtarOS' in launcher_profiles.json safely.")
 PY
 
-# 9. Install ShtarOS & Optimization Mods into Isolated Folder
-echo "⚡ Installing ShtarOS & optimization mod bundle into $SHTAROS_MODS_DIR..."
-cp "$ROOT/mods"/*.jar "$SHTAROS_MODS_DIR/"
-echo "   ✅ Installed $(ls -1 "$SHTAROS_MODS_DIR"/*.jar | wc -l | tr -d ' ') mods into isolated ShtarOS mods folder."
-
-# Also ensure standard mods folder has ShtarOS jars if desired
+# 9. Install ShtarOS & Optimization Mods into Isolated & Main Folders
+echo "⚡ Installing ShtarOS & complete mod bundle into $SHTAROS_MODS_DIR and $GAME_DIR/mods..."
 MODS_DIR="$GAME_DIR/mods"
-mkdir -p "$MODS_DIR"
-for core_jar in shtaros-2.0.0.jar rinku_fabric_3.0.5_MC_26.3.jar fabric-api-0.163.0+26.3.jar; do
-    if [[ -f "$ROOT/mods/$core_jar" ]]; then
-        cp "$ROOT/mods/$core_jar" "$MODS_DIR/"
-    fi
-done
-# Clean legacy or conflicting jars if present
-rm -f "$MODS_DIR/mineos-1.0.0.jar" "$SHTAROS_MODS_DIR/mineos-1.0.0.jar" "$SHTAROS_MODS_DIR/coolrain-1.4.0-26.3.jar"
+mkdir -p "$SHTAROS_MODS_DIR" "$MODS_DIR"
+
+# Clean legacy or conflicting duplicate jars
+rm -f "$MODS_DIR/mineos-1.0.0.jar" "$SHTAROS_MODS_DIR/mineos-1.0.0.jar"
+rm -f "$MODS_DIR/sodium-fabric-0.9.2+mc26.3.jar" "$SHTAROS_MODS_DIR/sodium-fabric-0.9.2+mc26.3.jar"
+
+cp "$ROOT/mods"/*.jar "$SHTAROS_MODS_DIR/"
+cp "$ROOT/mods"/*.jar "$MODS_DIR/"
+echo "   ✅ Installed $(ls -1 "$SHTAROS_MODS_DIR"/*.jar | wc -l | tr -d ' ') mods successfully."
+
+# 10. Install Shaderpacks
+if [[ -d "$ROOT/shaderpacks" ]]; then
+    mkdir -p "$GAME_DIR/shaderpacks"
+    cp "$ROOT/shaderpacks"/*.zip "$GAME_DIR/shaderpacks/" 2>/dev/null || true
+    echo "   ✅ Installed shaderpacks into $GAME_DIR/shaderpacks"
+fi
 
 echo ""
 echo "============================================================"

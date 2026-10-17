@@ -89,6 +89,24 @@ public final class ShtarOSCinemaBuilder {
             ShtarOSCinemaManager.setScreen(screenMin, screenMax, front.getOpposite());
             bindSpeakers(center, front);
             player.sendSystemMessage(Component.literal("§a[ShtarOS] 10×6 screen, raised seating, eight physical speakers, 10-block side radius."));
+            java.util.concurrent.CompletableFuture.runAsync(() -> {
+                for (int i = 0; i < 20; i++) {
+                    if (ShtarOSBrowserBridge.isAvailable()) {
+                        mc.execute(() -> {
+                            if (!ShtarOSBrowserBridge.isOpen()) {
+                                ShtarOSBrowserBridge.open();
+                            }
+                        });
+                        if (ShtarOSBrowserBridge.isOpen()) {
+                            mc.execute(() -> {
+                                if (player != null) player.sendSystemMessage(Component.literal("§d[ShtarOS] §aIn-world browser active! Left-click screen or press [I] to control."));
+                            });
+                            break;
+                        }
+                    }
+                    try { Thread.sleep(250); } catch (InterruptedException ignored) {}
+                }
+            });
         });
         });
     }
