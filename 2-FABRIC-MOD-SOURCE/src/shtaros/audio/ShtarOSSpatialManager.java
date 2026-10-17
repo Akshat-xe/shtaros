@@ -8,6 +8,7 @@ import shtaros.mixin.SoundEngineAccessor;
 import shtaros.mixin.SoundManagerAccessor;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.sounds.SoundEngine;
+import net.minecraft.client.sounds.SoundEngineExecutor;
 import net.minecraft.client.sounds.SoundManager;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
@@ -74,11 +75,13 @@ public class ShtarOSSpatialManager {
 
     public static void setVolume(float volume) {
         currentVolume = Math.max(0.0f, Math.min(1.0f, volume));
-        for (JukeboxPlayback playback : activePlaybacks.values()) {
-            if (playback.channel != null) {
-                playback.channel.setVolume(currentVolume);
+        onSoundThread(() -> {
+            for (JukeboxPlayback playback : activePlaybacks.values()) {
+                if (playback.channel != null) {
+                    playback.channel.setVolume(currentVolume);
+                }
             }
-        }
+        });
     }
 
     public static void cycleVolume() {
@@ -237,48 +240,54 @@ public class ShtarOSSpatialManager {
                         return;
                     }
 
-                    Channel channel = acquireChannel();
-                    if (channel == null) {
-                        System.err.println("[ShtarOS Jukebox] No OpenAL channel available!");
-                        if (mc.player != null) {
-                            mc.player.sendSystemMessage(
-                                    Component.literal("§c[ShtarOS Jukebox] Error: Sound engine channel busy.")
-                            );
+                    onSoundThread(() -> {
+                        Channel channel = acquireChannel();
+                        if (channel == null) {
+                            System.err.println("[ShtarOS Jukebox] No OpenAL channel available!");
+                            mc.execute(() -> {
+                                if (mc.player != null) {
+                                    mc.player.sendSystemMessage(
+                                            Component.literal("§c[ShtarOS Jukebox] Error: Sound engine channel busy.")
+                                    );
+                                }
+                            });
+                            try { finalAudioStream.close(); } catch (Exception ignored) {}
+                            return;
                         }
-                        try { finalAudioStream.close(); } catch (Exception ignored) {}
-                        return;
-                    }
 
-                    try {
-                        // Place sound source at center-top of Jukebox block
-                        Vec3 soundPos = new Vec3(pos.getX() + 0.5, pos.getY() + 0.8, pos.getZ() + 0.5);
-                        channel.setSelfPosition(soundPos);
-                        channel.setRelative(false); // In world coordinates for listener head tracking
-                        channel.linearAttenuation(96.0f); // Twice the theater's 48-block output range
-                        channel.setVolume(currentVolume);
+                        try {
+                            // Place sound source at center-top of Jukebox block
+                            Vec3 soundPos = new Vec3(pos.getX() + 0.5, pos.getY() + 0.8, pos.getZ() + 0.5);
+                            channel.setSelfPosition(soundPos);
+                            channel.setRelative(false); // In world coordinates for listener head tracking
+                            channel.linearAttenuation(96.0f); // Twice the theater's 48-block output range
+                            channel.setVolume(currentVolume);
 
-                        channel.attachBufferStream(finalAudioStream);
-                        channel.play();
+                            channel.attachBufferStream(finalAudioStream);
+                            channel.play();
 
-                        JukeboxPlayback playback = new JukeboxPlayback(pos, song, channel, finalAudioStream);
-                        activePlaybacks.put(pos, playback);
+                            JukeboxPlayback playback = new JukeboxPlayback(pos, song, channel, finalAudioStream);
+                            activePlaybacks.put(pos, playback);
 
-                        if (mc.player != null) {
-                            mc.player.sendOverlayMessage(
-                                    Component.literal("§d[ShtarOS Jukebox] §aNow Streaming: §f" + song.title() + " §7(" + song.durationStr() + ")")
-                            );
-                            mc.player.sendSystemMessage(
-                                    Component.literal("§d[ShtarOS Jukebox] §aStreaming: §f" + song.title() + " §7(" + song.durationStr() + ") §e[Spatial Audio Active]")
-                            );
+                            mc.execute(() -> {
+                                if (mc.player != null) {
+                                    mc.player.sendOverlayMessage(
+                                            Component.literal("§d[ShtarOS Jukebox] §aNow Streaming: §f" + song.title() + " §7(" + song.durationStr() + ")")
+                                    );
+                                    mc.player.sendSystemMessage(
+                                            Component.literal("§d[ShtarOS Jukebox] §aStreaming: §f" + song.title() + " §7(" + song.durationStr() + ") §e[Spatial Audio Active]")
+                                    );
+                                }
+                            });
+                            System.out.println("[ShtarOS Jukebox] Active playback started for '" + song.title() + "' at [" + pos.getX() + ", " + pos.getY() + ", " + pos.getZ() + "]");
+
+                        } catch (Throwable t) {
+                            System.err.println("[ShtarOS Jukebox] Error attaching stream: " + t.getMessage());
+                            t.printStackTrace();
+                            releaseChannel(channel);
+                            try { finalAudioStream.close(); } catch (Exception ignored) {}
                         }
-                        System.out.println("[ShtarOS Jukebox] Active playback started for '" + song.title() + "' at [" + pos.getX() + ", " + pos.getY() + ", " + pos.getZ() + "]");
-
-                    } catch (Throwable t) {
-                        System.err.println("[ShtarOS Jukebox] Error attaching stream: " + t.getMessage());
-                        t.printStackTrace();
-                        releaseChannel(channel);
-                        try { finalAudioStream.close(); } catch (Exception ignored) {}
-                    }
+                    });
                 });
 
             } catch (Exception e) {
@@ -377,28 +386,30 @@ public class ShtarOSSpatialManager {
 
             // 2. Update streaming buffers
             if (!pb.paused && pb.channel != null) {
-                try {
-                    pb.channel.updateStream();
+                onSoundThread(() -> {
+                    try {
+                        pb.channel.updateStream();
 
-                    // Starvation recovery:
-                    // If OpenAL momentarily exhausted queued buffers, state transitions to AL_STOPPED.
-                    // When updateStream() refills new buffers, we MUST call play() to restart hardware output.
-                    if (pb.channel.stopped()) {
-                        if (pb.audioStream.isFinished()) {
-                            System.out.println("[ShtarOS Jukebox] Finished playback for: " + pb.song.title());
-                            pb.stop();
-                            it.remove();
-                            finishedTracks.add(pos);
-                        } else {
-                            // Buffer starvation recovery
-                            pb.channel.play();
+                        // Starvation recovery:
+                        // If OpenAL momentarily exhausted queued buffers, state transitions to AL_STOPPED.
+                        // When updateStream() refills new buffers, we MUST call play() to restart hardware output.
+                        if (pb.channel.stopped()) {
+                            if (pb.audioStream.isFinished()) {
+                                System.out.println("[ShtarOS Jukebox] Finished playback for: " + pb.song.title());
+                                pb.stop();
+                                activePlaybacks.remove(pos);
+                                mc.execute(() -> next(pos));
+                            } else {
+                                // Buffer starvation recovery
+                                pb.channel.play();
+                            }
                         }
+                    } catch (Throwable t) {
+                        System.err.println("[ShtarOS Jukebox] Error updating stream: " + t.getMessage());
+                        pb.stop();
+                        activePlaybacks.remove(pos);
                     }
-                } catch (Throwable t) {
-                    System.err.println("[ShtarOS Jukebox] Error updating stream: " + t.getMessage());
-                    pb.stop();
-                    it.remove();
-                }
+                });
             }
         }
         for (BlockPos pos : finishedTracks) next(pos);
@@ -435,23 +446,40 @@ public class ShtarOSSpatialManager {
 
     private static void releaseChannel(Channel channel) {
         if (channel == null) return;
-        try {
-            channel.stop();
-            SoundManager sm = Minecraft.getInstance().getSoundManager();
-            if (sm instanceof SoundManagerAccessor smAccessor) {
-                SoundEngine se = smAccessor.getSoundEngine();
-                if (se instanceof SoundEngineAccessor seAccessor) {
-                    Library library = seAccessor.getLibrary();
-                    if (library != null) {
-                        library.releaseChannel(channel);
-                        return;
+        onSoundThread(() -> {
+            try {
+                channel.stop();
+                SoundManager sm = Minecraft.getInstance().getSoundManager();
+                if (sm instanceof SoundManagerAccessor smAccessor) {
+                    SoundEngine se = smAccessor.getSoundEngine();
+                    if (se instanceof SoundEngineAccessor seAccessor) {
+                        Library library = seAccessor.getLibrary();
+                        if (library != null) {
+                            library.releaseChannel(channel);
+                            return;
+                        }
                     }
                 }
-            }
-        } catch (Throwable ignored) {}
+            } catch (Throwable ignored) {}
 
-        try {
-            channel.destroy();
-        } catch (Throwable ignored) {}
+            try {
+                channel.destroy();
+            } catch (Throwable ignored) {}
+        });
+    }
+
+    private static void onSoundThread(Runnable task) {
+        SoundManager manager = Minecraft.getInstance().getSoundManager();
+        if (manager instanceof SoundManagerAccessor soundManager) {
+            SoundEngine engine = soundManager.getSoundEngine();
+            if (engine instanceof SoundEngineAccessor soundEngine) {
+                SoundEngineExecutor executor = soundEngine.getExecutor();
+                if (executor != null) {
+                    executor.execute(task);
+                    return;
+                }
+            }
+        }
+        task.run();
     }
 }
