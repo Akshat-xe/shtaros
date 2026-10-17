@@ -56,22 +56,7 @@ public final class ShtarOSSurroundManager {
     private static volatile boolean playing;
     private static volatile boolean started;
     private static volatile int generation;
-    private static long lastBrowserUnderrunLogNanos;
-    private static final ScheduledExecutorService browserPump = Executors.newSingleThreadScheduledExecutor(task -> {
-        Thread thread = new Thread(task, "ShtarOS browser audio pump");
-        thread.setDaemon(true);
-        return thread;
-    });
-    private static final AtomicBoolean browserPumpPending = new AtomicBoolean();
-    private static volatile ScheduledFuture<?> browserPumpTask;
     private static volatile int activeMask;
-    private static long lastBrowserStatsNanos;
-    private static long browserRecoveries;
-    private static long lastDroppedPackets;
-    private static long lastEmptyReads;
-    private static long lastFramesReceived;
-    private static long lastFramesRead;
-    private static final long[] lastSpeakerRecoveryNanos = new long[8];
 
     public static SurroundMode getMode() { return SurroundMode.PHYSICAL; }
     public static void cycleMode() { /* A fixed physical layout has one honest mode. */ }
@@ -170,19 +155,12 @@ public final class ShtarOSSurroundManager {
         }
         playing = true;
         feed = next;
-        browserRecoveries = 0;
-        lastDroppedPackets = 0;
-        lastEmptyReads = 0;
-        lastFramesReceived = 0;
-        lastFramesRead = 0;
-        lastBrowserStatsNanos = System.nanoTime();
         int validMask = speakerMask(mc);
         activeMask = validMask;
         onSoundThread(() -> {
             if (!playing || feed != next) return;
             int attached = attach(next, validMask);
             started = attached > 0;
-            if (attached > 0) startBrowserPump(next);
             mc.execute(() -> {
                 if (feed != next) return;
                 if (attached == 0) {
@@ -191,7 +169,7 @@ public final class ShtarOSSurroundManager {
                     System.err.println("[ShtarOS Surround] Browser audio attached to 0 speakers");
                 } else {
                     ShtarOSCinemaManager.log("Browser audio captured on " + attached + " physical speakers");
-                    System.out.println("[ShtarOS Surround] Browser audio attached to " + attached + " speakers via sound executor");
+                    System.out.println("[ShtarOS Surround] Browser audio attached to " + attached + " speakers");
                 }
             });
         });
@@ -231,9 +209,6 @@ public final class ShtarOSSurroundManager {
         playing = false;
         started = false;
         generation++;
-        ScheduledFuture<?> pumpTask = browserPumpTask;
-        browserPumpTask = null;
-        if (pumpTask != null) pumpTask.cancel(false);
         ShtarOSSpeakerFeed oldFeed = feed;
         feed = null;
         if (oldFeed != null) oldFeed.close();
@@ -254,96 +229,40 @@ public final class ShtarOSSurroundManager {
         int validMask = speakerMask(mc);
         activeMask = validMask;
         ShtarOSSpeakerFeed current = feed;
-        if (current instanceof ShtarOSBrowserSurroundFeed) return;
+        if (current == null) return;
         onSoundThread(() -> pumpChannels(current, validMask));
-    }
-
-    private static void startBrowserPump(ShtarOSBrowserSurroundFeed source) {
-        ScheduledFuture<?> old = browserPumpTask;
-        if (old != null) old.cancel(false);
-        browserPumpTask = browserPump.scheduleAtFixedRate(() -> {
-            if (!playing || feed != source || !browserPumpPending.compareAndSet(false, true)) return;
-            onSoundThread(() -> {
-                try {
-                    pumpChannels(source, activeMask);
-                } finally {
-                    browserPumpPending.set(false);
-                }
-            });
-        }, 0, 20, TimeUnit.MILLISECONDS);
     }
 
     private static void pumpChannels(ShtarOSSpeakerFeed current, int validMask) {
         if (!playing || feed != current || current == null) return;
         Minecraft mc = Minecraft.getInstance();
         for (SpeakerInfo speaker : speakers) {
-                Channel channel = speaker.channel;
-                if (channel == null) continue;
-                if ((validMask & (1 << speaker.role.ordinal())) == 0) {
-                    current.disable(speaker.role.ordinal());
-                    releaseChannel(channel);
-                    speaker.channel = null;
-                    continue;
-                }
-                try {
-                    int roleIdx = speaker.role.ordinal();
-                    if (current instanceof ShtarOSBrowserSurroundFeed browser && channel.stopped()
-                            && browser.bufferedMillis(roleIdx) < 350) continue;
-                    channel.updateStream();
-                    if (channel.stopped() && !current.isFinished()) {
-                        long now = System.nanoTime();
-                        if (now - lastSpeakerRecoveryNanos[roleIdx] < 400_000_000L) continue;
-                        // updateStream may already have queued fresh PCM. Only
-                        // attach again if its OpenAL queue is truly empty.
-                        int queued = AL10.alGetSourcei(((ChannelAccessor) channel).shtaros$getSource(),
-                                AL10.AL_BUFFERS_QUEUED);
-                        if (queued == 0) {
-                            if (current instanceof ShtarOSBrowserSurroundFeed browser
-                                    && !browser.hasBufferedAudio(roleIdx)) continue;
-                            channel.attachBufferStream(current.speaker(roleIdx));
-                        }
-                        channel.play();
-                        lastSpeakerRecoveryNanos[roleIdx] = now;
-                        if (current instanceof ShtarOSBrowserSurroundFeed) {
-                            browserRecoveries++;
-                            if (now - lastBrowserUnderrunLogNanos > 10_000_000_000L) {
-                                lastBrowserUnderrunLogNanos = now;
-                                System.out.println("[ShtarOS Surround] Refilled drained browser speaker " + speaker.role);
-                            }
-                        }
-                    }
-                } catch (Throwable t) {
-                    current.disable(speaker.role.ordinal());
-                    releaseChannel(channel);
-                    speaker.channel = null;
-                    System.err.println("[ShtarOS Surround] Speaker " + speaker.role + " stopped: " + t.getMessage());
-                }
+            Channel channel = speaker.channel;
+            if (channel == null) continue;
+            int roleIdx = speaker.role.ordinal();
+            if ((validMask & (1 << roleIdx)) == 0) {
+                current.disable(roleIdx);
+                releaseChannel(channel);
+                speaker.channel = null;
+                continue;
             }
-        if (current instanceof ShtarOSBrowserSurroundFeed browser) {
-                long now = System.nanoTime();
-                if (now - lastBrowserStatsNanos > 10_000_000_000L) {
-                    lastBrowserStatsNanos = now;
-                    long dropped = browser.droppedPackets();
-                    long empty = browser.emptyReads();
-                    long received = browser.framesReceived();
-                    long read = browser.framesRead();
-                    System.out.println("[ShtarOS Surround] 10s diagnostics: recoveries=" + browserRecoveries
-                            + ", droppedPackets=" + (dropped - lastDroppedPackets)
-                            + ", emptyReads=" + (empty - lastEmptyReads)
-                            + ", inputFrames=" + (received - lastFramesReceived)
-                            + ", outputFrames=" + (read - lastFramesRead));
-                    browserRecoveries = 0;
-                    lastDroppedPackets = dropped;
-                    lastEmptyReads = empty;
-                    lastFramesReceived = received;
-                    lastFramesRead = read;
+            try {
+                channel.updateStream();
+                if (channel.stopped() && !current.isFinished()) {
+                    channel.play();
                 }
+            } catch (Throwable t) {
+                current.disable(roleIdx);
+                releaseChannel(channel);
+                speaker.channel = null;
+                System.err.println("[ShtarOS Surround] Speaker " + speaker.role + " error: " + t.getMessage());
+            }
         }
-            if (started && speakers.stream().noneMatch(s -> s.channel != null)) {
-                mc.execute(() -> { if (feed == current) stop(); });
-            } else if (current.isFinished() && speakers.stream().allMatch(s -> s.channel == null || s.channel.stopped())) {
-                mc.execute(() -> { if (feed == current) stop(); });
-            }
+        if (started && speakers.stream().noneMatch(s -> s.channel != null)) {
+            mc.execute(() -> { if (feed == current) stop(); });
+        } else if (current.isFinished() && speakers.stream().allMatch(s -> s.channel == null || s.channel.stopped())) {
+            mc.execute(() -> { if (feed == current) stop(); });
+        }
     }
 
     private static int speakerMask(Minecraft mc) {
