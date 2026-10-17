@@ -14,7 +14,7 @@ public class FramerateLimitTrackerMixin {
     private void shtarosBackgroundLimit(CallbackInfoReturnable<Integer> cir) {
         Minecraft client = Minecraft.getInstance();
         if (client != null && client.getWindow() != null && !client.getWindow().isFocused()) {
-            cir.setReturnValue(Math.min(cir.getReturnValue(), 2));
+            cir.setReturnValue(Math.min(cir.getReturnValue(), 30));
         }
     }
 }

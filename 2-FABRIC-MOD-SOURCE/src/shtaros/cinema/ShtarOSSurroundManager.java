@@ -71,6 +71,7 @@ public final class ShtarOSSurroundManager {
     private static long lastEmptyReads;
     private static long lastFramesReceived;
     private static long lastFramesRead;
+    private static final long[] lastSpeakerRecoveryNanos = new long[8];
 
     public static SurroundMode getMode() { return SurroundMode.PHYSICAL; }
     public static void cycleMode() { /* A fixed physical layout has one honest mode. */ }
@@ -285,23 +286,26 @@ public final class ShtarOSSurroundManager {
                     continue;
                 }
                 try {
+                    int roleIdx = speaker.role.ordinal();
                     if (current instanceof ShtarOSBrowserSurroundFeed browser && channel.stopped()
-                            && browser.bufferedMillis(speaker.role.ordinal()) < 220) continue;
+                            && browser.bufferedMillis(roleIdx) < 350) continue;
                     channel.updateStream();
                     if (channel.stopped() && !current.isFinished()) {
+                        long now = System.nanoTime();
+                        if (now - lastSpeakerRecoveryNanos[roleIdx] < 400_000_000L) continue;
                         // updateStream may already have queued fresh PCM. Only
                         // attach again if its OpenAL queue is truly empty.
                         int queued = AL10.alGetSourcei(((ChannelAccessor) channel).shtaros$getSource(),
                                 AL10.AL_BUFFERS_QUEUED);
                         if (queued == 0) {
                             if (current instanceof ShtarOSBrowserSurroundFeed browser
-                                    && !browser.hasBufferedAudio(speaker.role.ordinal())) continue;
-                            channel.attachBufferStream(current.speaker(speaker.role.ordinal()));
+                                    && !browser.hasBufferedAudio(roleIdx)) continue;
+                            channel.attachBufferStream(current.speaker(roleIdx));
                         }
                         channel.play();
+                        lastSpeakerRecoveryNanos[roleIdx] = now;
                         if (current instanceof ShtarOSBrowserSurroundFeed) {
                             browserRecoveries++;
-                            long now = System.nanoTime();
                             if (now - lastBrowserUnderrunLogNanos > 10_000_000_000L) {
                                 lastBrowserUnderrunLogNanos = now;
                                 System.out.println("[ShtarOS Surround] Refilled drained browser speaker " + speaker.role);

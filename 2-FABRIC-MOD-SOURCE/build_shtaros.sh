@@ -30,10 +30,13 @@ echo "Packaging JAR to $JAR_TARGET..."
 cd "$BUILD_DIR"
 jar -cf "$JAR_TARGET" fabric.mod.json shtaros.mixins.json shtaros
 
-echo "Deploying to Minecraft mods directory..."
-mkdir -p "$MINECRAFT_DIR/mods"
+echo "Deploying to Minecraft mods directories..."
+mkdir -p "$MINECRAFT_DIR/mods" "$MINECRAFT_DIR/shtaros-mods" "$DIR/../mods" "$DIR/../release/ShtarOS-2.0.0-macos/mods"
 cp -v "$JAR_TARGET" "$MINECRAFT_DIR/mods/shtaros-2.0.0.jar"
+cp -v "$JAR_TARGET" "$MINECRAFT_DIR/shtaros-mods/shtaros-2.0.0.jar"
 cp -v "$JAR_TARGET" "$DIR/../1-READY-TO-PLAY/shtaros-2.0.0.jar"
+cp -v "$JAR_TARGET" "$DIR/../mods/shtaros-2.0.0.jar"
+cp -v "$JAR_TARGET" "$DIR/../release/ShtarOS-2.0.0-macos/mods/shtaros-2.0.0.jar"
 
 echo ""
 echo "=========================================================="

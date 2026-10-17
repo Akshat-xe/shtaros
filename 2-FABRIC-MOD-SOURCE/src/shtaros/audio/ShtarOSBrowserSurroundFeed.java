@@ -14,11 +14,11 @@ import java.util.concurrent.atomic.AtomicBoolean;
 /** Bounded eight-speaker PCM feed from Chromium's planar float audio callback. */
 public final class ShtarOSBrowserSurroundFeed implements ShtarOSSpeakerFeed {
     private static final int SPEAKERS = 8;
-    // Four 46 ms OpenAL buffers leave some captured PCM in reserve. Recovery
-    // waits for a reserve instead of repeatedly restarting on one packet.
-    private static final int MAX_STREAM_BUFFER_BYTES = 4096;
-    private static final int MAX_QUEUED_AUDIO_MS = 400;
-    private static final int PRIME_AUDIO_MS = 260;
+    // Bounded hardware buffers provide a solid continuous audio reserve in OpenAL
+    // so game tick jitters and CEF frame rendering never starve the speakers.
+    private static final int MAX_STREAM_BUFFER_BYTES = 16384;
+    private static final int MAX_QUEUED_AUDIO_MS = 2000;
+    private static final int PRIME_AUDIO_MS = 350;
     private final ArrayBlockingQueue<byte[]>[] queues;
     private final SpeakerStream[] streams = new SpeakerStream[SPEAKERS];
     private final AtomicInteger activeMask;
@@ -38,7 +38,7 @@ public final class ShtarOSBrowserSurroundFeed implements ShtarOSSpeakerFeed {
         activeMask = new AtomicInteger(speakerMask);
         queues = new ArrayBlockingQueue[SPEAKERS];
         for (int i = 0; i < SPEAKERS; i++) {
-            queues[i] = new ArrayBlockingQueue<>(32);
+            queues[i] = new ArrayBlockingQueue<>(128);
             streams[i] = new SpeakerStream(i, sampleRate);
         }
     }
@@ -83,7 +83,7 @@ public final class ShtarOSBrowserSurroundFeed implements ShtarOSSpeakerFeed {
             write(pcm[7], i, .03f * mid - .15f * side);
         }
         int mask = activeMask.get();
-        int maxPackets = Math.max(2, Math.min(32,
+        int maxPackets = Math.max(8, Math.min(128,
                 (sampleRate * MAX_QUEUED_AUDIO_MS / 1000 + frames - 1) / frames));
         for (int s = 0; s < SPEAKERS; s++) {
             if ((mask & (1 << s)) == 0) continue;
@@ -167,6 +167,15 @@ public final class ShtarOSBrowserSurroundFeed implements ShtarOSSpeakerFeed {
             // silent buffer would play *after* fresh packets have arrived.
             if (audioBytes == 0) {
                 if (index == 0) emptyReads++;
+                if (!finished && !closed) {
+                    // Conceal underrun with a tiny silence buffer (256 frames = 512 bytes = ~5.8ms)
+                    // This keeps the OpenAL hardware source in AL_PLAYING state without clicks or pops,
+                    // allowing fresh incoming audio packets to continue seamlessly without channel tear-down!
+                    ByteBuffer silence = ByteBuffer.allocateDirect(512).order(ByteOrder.LITTLE_ENDIAN);
+                    for (int i = 0; i < 256; i++) silence.putShort((short) 0);
+                    silence.flip();
+                    return silence;
+                }
                 return null;
             }
             // A network/render stall may leave part of a buffer empty. Fade at

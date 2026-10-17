@@ -225,8 +225,8 @@ for core_jar in shtaros-2.0.0.jar rinku_fabric_3.0.5_MC_26.3.jar fabric-api-0.16
         cp "$ROOT/mods/$core_jar" "$MODS_DIR/"
     fi
 done
-# Clean legacy mineos jar if present
-rm -f "$MODS_DIR/mineos-1.0.0.jar" "$SHTAROS_MODS_DIR/mineos-1.0.0.jar"
+# Clean legacy or conflicting jars if present
+rm -f "$MODS_DIR/mineos-1.0.0.jar" "$SHTAROS_MODS_DIR/mineos-1.0.0.jar" "$SHTAROS_MODS_DIR/coolrain-1.4.0-26.3.jar"
 
 echo ""
 echo "============================================================"

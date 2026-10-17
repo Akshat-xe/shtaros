@@ -20,9 +20,6 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 public class MinecraftTickMixin {
 
     private static boolean wasIKeyDown = false;
-    private static long unfocusedSince;
-    private static boolean backgroundPausedCinema;
-    private static boolean backgroundPausedAudio;
 
     /**
      * Executes at the HEAD of every single render frame BEFORE any level or GUI render pass begins!
@@ -39,24 +36,6 @@ public class MinecraftTickMixin {
         Minecraft mc = (Minecraft)(Object)this;
         ShtarOSCinemaView.tick();
 
-        if (mc.getWindow() != null && !mc.getWindow().isFocused()) {
-            if (unfocusedSince == 0) unfocusedSince = System.nanoTime();
-            if (!backgroundPausedAudio && System.nanoTime() - unfocusedSince > 2_000_000_000L) {
-                if (ShtarOSCinemaManager.getCurrentVideoId() != null && !ShtarOSCinemaManager.isPaused()) {
-                    ShtarOSCinemaManager.togglePause();
-                    backgroundPausedCinema = true;
-                }
-                ShtarOSSpatialManager.pauseForBackground();
-                backgroundPausedAudio = true;
-            }
-        } else {
-            unfocusedSince = 0;
-            if (backgroundPausedCinema && ShtarOSCinemaManager.getCurrentVideoId() != null && ShtarOSCinemaManager.isPaused())
-                ShtarOSCinemaManager.togglePause();
-            backgroundPausedCinema = false;
-            if (backgroundPausedAudio) ShtarOSSpatialManager.resumeFromBackground();
-            backgroundPausedAudio = false;
-        }
 
         // Check for 'I' key via registered Minecraft KeyMapping or raw input edge
         if (mc.gui != null && mc.gui.screen() == null && mc.player != null) {
