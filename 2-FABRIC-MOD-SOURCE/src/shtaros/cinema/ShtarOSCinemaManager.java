@@ -205,6 +205,20 @@ public class ShtarOSCinemaManager {
         return screenMax;
     }
 
+    public static boolean isWithinScreen(BlockPos pos) {
+        if (!hasScreen() || pos == null) return false;
+        int minX = Math.min(screenMin.getX(), screenMax.getX());
+        int maxX = Math.max(screenMin.getX(), screenMax.getX());
+        int minY = Math.min(screenMin.getY(), screenMax.getY());
+        int maxY = Math.max(screenMin.getY(), screenMax.getY());
+        int minZ = Math.min(screenMin.getZ(), screenMax.getZ());
+        int maxZ = Math.max(screenMin.getZ(), screenMax.getZ());
+
+        return pos.getX() >= minX && pos.getX() <= maxX &&
+               pos.getY() >= minY && pos.getY() <= maxY &&
+               pos.getZ() >= minZ && pos.getZ() <= maxZ;
+    }
+
     public static Direction getScreenFacing() {
         return screenFacing;
     }

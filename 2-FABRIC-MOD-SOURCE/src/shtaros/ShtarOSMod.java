@@ -23,6 +23,8 @@ import net.minecraft.resources.Identifier;
 import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.ClickEvent;
+import java.util.List;
 import java.net.URI;
 
 public class ShtarOSMod implements ClientModInitializer {
@@ -33,10 +35,10 @@ public class ShtarOSMod implements ClientModInitializer {
     public void onInitializeClient() {
         System.out.println("[ShtarOS] Cinema display and physical surround initializing...");
 
-        // Register official 'I' KeyMapping
+        // Register official Remote KeyMapping (Default 'U' to avoid Iris shaderpack conflict on 'I')
         REMOTE_KEY = KeyMappingHelper.registerKeyMapping(new KeyMapping(
                 "key.shtaros.remote",
-                InputConstants.KEY_I,
+                InputConstants.KEY_U,
                 KeyMapping.Category.MISC
         ));
         ShtarOSInventoryButtons.register();
@@ -55,15 +57,30 @@ public class ShtarOSMod implements ClientModInitializer {
             if (client.level == null || client.gui.screen() != null || ShtarOSCinemaView.isActive()
                     || !ShtarOSBrowserBridge.isOpen()) return;
 
-            // Clean, non-intrusive indicator only when typing mode is active
+            int w = client.getWindow().getGuiScaledWidth();
+            int h = client.getWindow().getGuiScaledHeight();
+
+            // 1. Sleek Top Bar HUD when browser is active in-world
+            ShtarOSBrowserBridge.BrowserTab activeTab = ShtarOSBrowserBridge.getActiveTab();
+            if (activeTab != null && (shtaros.browser.ShtarOSScreenRaycast.getLatestHit() != null || ShtarOSBrowserBridge.isTypingMode())) {
+                String tabTitle = activeTab.getTitle();
+                int tabIdx = ShtarOSBrowserBridge.getActiveTabIndex() + 1;
+                int totalTabs = ShtarOSBrowserBridge.getTabs().size();
+                String topText = "§b[Tab " + tabIdx + "/" + totalTabs + ": " + tabTitle + "] §7" + activeTab.getUrl()
+                        + " §8| §f[Shift+RClick] Tabs & Controls";
+                int topW = client.font.width(topText);
+                int barX = (w - topW) / 2 - 8;
+                graphics.fill(barX, 4, barX + topW + 16, 20, 0xD0141918);
+                graphics.text(client.font, Component.literal(topText), (w - topW) / 2, 8, 0xFFFFFFFF);
+            }
+
+            // 2. Clean, non-intrusive indicator only when typing mode is active
             if (ShtarOSBrowserBridge.isTypingMode()) {
-                int w = client.getWindow().getGuiScaledWidth();
-                int h = client.getWindow().getGuiScaledHeight();
-                String text = "§a⌨ Typing Mode §7(F8 or Esc to walk)";
+                String text = "§a⌨ Typing Mode Active §7(Press F8 or Esc to walk)";
                 int textW = client.font.width(text);
                 int bgX = (w - textW) / 2 - 6;
                 int bgY = h - 30;
-                graphics.fill(bgX, bgY - 2, bgX + textW + 12, bgY + 11, 0xC0141918);
+                graphics.fill(bgX, bgY - 2, bgX + textW + 12, bgY + 11, 0xD0141918);
                 graphics.text(client.font, net.minecraft.network.chat.Component.literal(text), (w - textW) / 2, bgY, 0xFFFFFFFF);
             }
         });
@@ -225,6 +242,100 @@ public class ShtarOSMod implements ClientModInitializer {
                             mc.player.sendSystemMessage(net.minecraft.network.chat.Component.literal(
                                     "§bSpeaker " + (speaker.role.ordinal() + 1) + " §f" + speaker.role.name()
                                     + " §7at " + p.getX() + ", " + p.getY() + ", " + p.getZ()));
+                        }
+                    }
+                    return 1;
+                }))
+                .then(ClientCommands.literal("share").executes((CommandContext<FabricClientCommandSource> ctx) -> {
+                    Minecraft mc = Minecraft.getInstance();
+                    if (mc.player == null) return 1;
+                    String vidId = ShtarOSCinemaManager.getCurrentVideoId();
+                    String vidTitle = ShtarOSCinemaManager.getCurrentVideoTitle();
+                    int offset = ShtarOSCinemaManager.playbackSeconds();
+                    if (vidId != null) {
+                        String syncCmd = "/shtaros sync " + vidId + " " + offset;
+                        Component msg = Component.literal("§d[ShtarOS Cinema] §eNow Playing: §f\"" + vidTitle + "\" ")
+                                .append(Component.literal("§a[CLICK TO SYNC]")
+                                        .withStyle(style -> style
+                                                .withClickEvent(new ClickEvent.RunCommand(syncCmd))
+                                                .withUnderlined(true)));
+                        mc.player.sendSystemMessage(msg);
+                    } else if (ShtarOSBrowserBridge.isOpen()) {
+                        String url = ShtarOSBrowserBridge.url();
+                        String syncCmd = "/shtaros url " + url;
+                        Component msg = Component.literal("§d[ShtarOS Browser] §eActive Web: §f" + url + " ")
+                                .append(Component.literal("§a[CLICK TO OPEN]")
+                                        .withStyle(style -> style
+                                                .withClickEvent(new ClickEvent.RunCommand(syncCmd))
+                                                .withUnderlined(true)));
+                        mc.player.sendSystemMessage(msg);
+                    } else {
+                        mc.player.sendSystemMessage(Component.literal("§c[ShtarOS] Nothing is currently playing to share."));
+                    }
+                    return 1;
+                }))
+                .then(ClientCommands.literal("sync")
+                    .then(ClientCommands.argument("video", com.mojang.brigadier.arguments.StringArgumentType.word())
+                        .executes((CommandContext<FabricClientCommandSource> ctx) -> {
+                            String video = com.mojang.brigadier.arguments.StringArgumentType.getString(ctx, "video");
+                            Minecraft mc = Minecraft.getInstance();
+                            mc.execute(() -> ShtarOSCinemaManager.playVideo(video, "Synced Video"));
+                            return 1;
+                        })
+                        .then(ClientCommands.argument("seconds", com.mojang.brigadier.arguments.IntegerArgumentType.integer(0))
+                            .executes((CommandContext<FabricClientCommandSource> ctx) -> {
+                                String video = com.mojang.brigadier.arguments.StringArgumentType.getString(ctx, "video");
+                                int sec = com.mojang.brigadier.arguments.IntegerArgumentType.getInteger(ctx, "seconds");
+                                Minecraft mc = Minecraft.getInstance();
+                                mc.execute(() -> {
+                                    ShtarOSCinemaManager.playVideo(video, "Synced Video");
+                                    ShtarOSCinemaManager.seekTo(sec);
+                                });
+                                return 1;
+                            })
+                        )
+                    )
+                )
+                .then(ClientCommands.literal("tab")
+                    .then(ClientCommands.literal("new")
+                        .executes((CommandContext<FabricClientCommandSource> ctx) -> {
+                            Minecraft.getInstance().execute(() -> ShtarOSBrowserBridge.newTab(ShtarOSBrowserBridge.HOME));
+                            return 1;
+                        })
+                        .then(ClientCommands.argument("url", com.mojang.brigadier.arguments.StringArgumentType.greedyString())
+                            .executes((CommandContext<FabricClientCommandSource> ctx) -> {
+                                String url = com.mojang.brigadier.arguments.StringArgumentType.getString(ctx, "url");
+                                Minecraft.getInstance().execute(() -> ShtarOSBrowserBridge.newTab(url));
+                                return 1;
+                            })
+                        )
+                    )
+                    .then(ClientCommands.literal("switch")
+                        .then(ClientCommands.argument("index", com.mojang.brigadier.arguments.IntegerArgumentType.integer(1))
+                            .executes((CommandContext<FabricClientCommandSource> ctx) -> {
+                                int idx = com.mojang.brigadier.arguments.IntegerArgumentType.getInteger(ctx, "index") - 1;
+                                Minecraft.getInstance().execute(() -> ShtarOSBrowserBridge.switchTab(idx));
+                                return 1;
+                            })
+                        )
+                    )
+                    .then(ClientCommands.literal("close")
+                        .executes((CommandContext<FabricClientCommandSource> ctx) -> {
+                            Minecraft.getInstance().execute(() -> ShtarOSBrowserBridge.closeTab(ShtarOSBrowserBridge.getActiveTabIndex()));
+                            return 1;
+                        })
+                    )
+                )
+                .then(ClientCommands.literal("tabs").executes((CommandContext<FabricClientCommandSource> ctx) -> {
+                    Minecraft mc = Minecraft.getInstance();
+                    if (mc.player != null) {
+                        List<ShtarOSBrowserBridge.BrowserTab> tabs = ShtarOSBrowserBridge.getTabs();
+                        int active = ShtarOSBrowserBridge.getActiveTabIndex();
+                        mc.player.sendSystemMessage(Component.literal("§d[ShtarOS Browser] §eOpen Tabs (" + tabs.size() + "):"));
+                        for (int i = 0; i < tabs.size(); i++) {
+                            ShtarOSBrowserBridge.BrowserTab tab = tabs.get(i);
+                            String prefix = (i == active) ? "§a▶ [" + (i + 1) + "] " : "§7  [" + (i + 1) + "] ";
+                            mc.player.sendSystemMessage(Component.literal(prefix + "§f" + tab.getTitle() + " §8(" + tab.getUrl() + ")"));
                         }
                     }
                     return 1;

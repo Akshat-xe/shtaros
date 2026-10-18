@@ -81,25 +81,27 @@ public class MultiPlayerGameModeMixin {
 
     @Inject(method = "startDestroyBlock", at = @At("HEAD"), cancellable = true)
     private void onStartDestroyBlock(BlockPos pos, net.minecraft.core.Direction direction, CallbackInfoReturnable<Boolean> cir) {
-        if (isWithinScreen(pos)) {
+        if (ShtarOSCinemaManager.isWithinScreen(pos)) {
             // Protect screen from being broken when clicking on it
             cir.setReturnValue(false);
         }
     }
 
-    private boolean isWithinScreen(BlockPos pos) {
-        if (!ShtarOSCinemaManager.hasScreen()) return false;
-        BlockPos min = ShtarOSCinemaManager.getScreenMin();
-        BlockPos max = ShtarOSCinemaManager.getScreenMax();
-        int minX = Math.min(min.getX(), max.getX());
-        int maxX = Math.max(min.getX(), max.getX());
-        int minY = Math.min(min.getY(), max.getY());
-        int maxY = Math.max(min.getY(), max.getY());
-        int minZ = Math.min(min.getZ(), max.getZ());
-        int maxZ = Math.max(min.getZ(), max.getZ());
+    @Inject(method = "continueDestroyBlock", at = @At("HEAD"), cancellable = true)
+    private void onContinueDestroyBlock(BlockPos pos, net.minecraft.core.Direction direction, CallbackInfoReturnable<Boolean> cir) {
+        if (ShtarOSCinemaManager.isWithinScreen(pos)) {
+            cir.setReturnValue(false);
+        }
+    }
 
-        return pos.getX() >= minX && pos.getX() <= maxX &&
-               pos.getY() >= minY && pos.getY() <= maxY &&
-               pos.getZ() >= minZ && pos.getZ() <= maxZ;
+    @Inject(method = "destroyBlock", at = @At("HEAD"), cancellable = true)
+    private void onDestroyBlock(BlockPos pos, CallbackInfoReturnable<Boolean> cir) {
+        if (ShtarOSCinemaManager.isWithinScreen(pos)) {
+            cir.setReturnValue(false);
+        }
+    }
+
+    private boolean isWithinScreen(BlockPos pos) {
+        return ShtarOSCinemaManager.isWithinScreen(pos);
     }
 }

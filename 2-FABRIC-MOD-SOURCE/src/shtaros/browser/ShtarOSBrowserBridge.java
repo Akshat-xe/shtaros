@@ -8,27 +8,59 @@ import net.minecraft.resources.Identifier;
 
 import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
+import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.CopyOnWriteArrayList;
 
-/** Optional bridge to Rinku. ShtarOS still builds and plays its original streams without it. */
+/** Optional bridge to Rinku with full multi-tab support and hardware video capture. */
 public final class ShtarOSBrowserBridge {
-    private static final String HOME = "https://search.brave.com/";
+    public static final String HOME = "https://search.brave.com/";
     private static final String FOCUS_PREFIX = "shtaros-focus-" + UUID.randomUUID() + ":";
+
+    public static class BrowserTab {
+        private final String id;
+        private String title;
+        private String url;
+        private final Object browser;
+
+        public BrowserTab(String id, String title, String url, Object browser) {
+            this.id = id;
+            this.title = title;
+            this.url = url;
+            this.browser = browser;
+        }
+
+        public String getId() { return id; }
+        public String getTitle() {
+            if (title != null && !title.isBlank()) return title;
+            if (url != null && !url.isBlank()) {
+                String clean = url.replace("https://", "").replace("http://", "").replace("www.", "");
+                int slash = clean.indexOf('/');
+                return slash > 0 ? clean.substring(0, slash) : clean;
+            }
+            return "New Tab";
+        }
+        public void setTitle(String title) { this.title = title; }
+        public String getUrl() { return url != null ? url : ""; }
+        public void setUrl(String url) { this.url = url; }
+        public Object getBrowser() { return browser; }
+    }
+
+    private static final List<BrowserTab> tabs = new CopyOnWriteArrayList<>();
+    private static volatile int activeTabIndex = 0;
+
     private static Object browser;
     private static Object displayHandler;
     private static Class<?> browserClass;
     private static String error = "";
 
     // Off-screen Chromium paints and uploads every changed pixel through Minecraft.
-    // Keep the world display modest so video does not stall the game render thread.
     private static int currentWidth = 960;
     private static int currentHeight = 540;
     private static int requestedFrameRate = 30;
     private static long nextFrameRateCheck;
     private static long lastVideoStatsNanos;
     private static long lastSentMouseMoveNanos;
-    private static int lowFpsSamples;
-    private static int highFpsSamples;
     private static final long POINTER_IDLE_NANOS = 5_000_000_000L;
     private static int lastPointerX = Integer.MIN_VALUE;
     private static int lastPointerY = Integer.MIN_VALUE;
@@ -48,6 +80,63 @@ public final class ShtarOSBrowserBridge {
     public static int getWidth() { return currentWidth; }
     public static int getHeight() { return currentHeight; }
 
+    public static List<BrowserTab> getTabs() { return List.copyOf(tabs); }
+    public static int getActiveTabIndex() { return activeTabIndex; }
+    public static BrowserTab getActiveTab() {
+        if (activeTabIndex >= 0 && activeTabIndex < tabs.size()) return tabs.get(activeTabIndex);
+        return null;
+    }
+
+    public static boolean newTab(String targetUrl) {
+        if (!isOpen() && !open()) return false;
+        String dest = (targetUrl == null || targetUrl.isBlank()) ? HOME : targetUrl;
+        try {
+            Class<?> api = Class.forName("de.keksuccino.rinku.Rinku");
+            Object created = api.getMethod("createBrowser", String.class, boolean.class)
+                    .invoke(null, dest, false);
+            if (created == null) return false;
+            BrowserTab tab = new BrowserTab(UUID.randomUUID().toString(), "New Tab", dest, created);
+            tabs.add(tab);
+            switchTab(tabs.size() - 1);
+            return true;
+        } catch (Throwable e) {
+            System.err.println("[ShtarOS Browser] Failed to create new tab: " + rootMessage(e));
+            return false;
+        }
+    }
+
+    public static void switchTab(int index) {
+        if (index < 0 || index >= tabs.size()) return;
+        activeTabIndex = index;
+        BrowserTab tab = tabs.get(index);
+        browser = tab.getBrowser();
+        browserClass = browser.getClass();
+        resetPointer();
+        call("setWindowlessFrameRate", new Class<?>[]{int.class}, requestedFrameRate);
+        resize(currentWidth, currentHeight);
+        focus();
+        ShtarOSBrowserAudioCapture.setTarget(browser);
+    }
+
+    public static void closeTab(int index) {
+        if (index < 0 || index >= tabs.size()) return;
+        if (tabs.size() <= 1) {
+            navigate(HOME);
+            return;
+        }
+        BrowserTab removed = tabs.remove(index);
+        try {
+            removed.getBrowser().getClass().getMethod("close").invoke(removed.getBrowser());
+        } catch (Throwable ignored) {}
+
+        if (activeTabIndex >= tabs.size()) {
+            activeTabIndex = tabs.size() - 1;
+        } else if (activeTabIndex > index) {
+            activeTabIndex--;
+        }
+        switchTab(activeTabIndex);
+    }
+
     public static boolean isTypingMode() { return typingMode && isOpen(); }
     public static void setTypingMode(boolean active) {
         boolean next = active && isOpen();
@@ -56,8 +145,6 @@ public final class ShtarOSBrowserBridge {
         typingMode = next;
         if (next) {
             KeyMapping.releaseAll();
-            // Rinku starts SDL text input only for a visible GUI with a free
-            // mouse. In-world browser clicks meet neither condition.
             Minecraft.getInstance().textInputManager().startTextInput(browser);
         } else {
             Minecraft.getInstance().textInputManager().stopTextInput(browser);
@@ -111,6 +198,10 @@ public final class ShtarOSBrowserBridge {
             Object created = api.getMethod("createBrowser", String.class, boolean.class)
                     .invoke(null, HOME, false);
             if (created == null) throw new IllegalStateException("The browser did not start");
+            tabs.clear();
+            BrowserTab initialTab = new BrowserTab(UUID.randomUUID().toString(), "Brave Search", HOME, created);
+            tabs.add(initialTab);
+            activeTabIndex = 0;
             browser = created;
             resetPointer();
             ShtarOSBrowserAudioCapture.setTarget(created);
@@ -118,8 +209,6 @@ public final class ShtarOSBrowserBridge {
             error = "";
             requestedFrameRate = 30;
             nextFrameRateCheck = 0;
-            lowFpsSamples = 0;
-            highFpsSamples = 0;
             call("setWindowlessFrameRate", new Class<?>[]{int.class}, requestedFrameRate);
             resize(currentWidth, currentHeight);
             focus();
@@ -134,19 +223,21 @@ public final class ShtarOSBrowserBridge {
     }
 
     public static void close() {
-        if (browser == null) return;
+        if (browser == null && tabs.isEmpty()) return;
         setTypingMode(false);
         ShtarOSBrowserAudioCapture.closeTarget();
-        try { invoke("close"); }
-        catch (ReflectiveOperationException | RuntimeException e) {
-            System.err.println("[ShtarOS Browser] Close failed: " + rootMessage(e));
-        } finally {
-            browser = null;
-            browserClass = null;
-            focusCheckTicks = -1;
-            textCursor = false;
-            resetPointer();
+        for (BrowserTab tab : tabs) {
+            try {
+                tab.getBrowser().getClass().getMethod("close").invoke(tab.getBrowser());
+            } catch (Throwable ignored) {}
         }
+        tabs.clear();
+        browser = null;
+        browserClass = null;
+        activeTabIndex = 0;
+        focusCheckTicks = -1;
+        textCursor = false;
+        resetPointer();
     }
 
     /** Rebind the current Chromium audio stream after theater speakers change. */
@@ -187,7 +278,6 @@ public final class ShtarOSBrowserBridge {
                     + ", paintLimit=" + requestedFrameRate
                     + ", view=" + currentWidth + "x" + currentHeight);
         }
-        // Keep CEF paint limit locked to 30 FPS for silky-smooth in-world streaming without GPU congestion
         int target = 30;
         if (target != requestedFrameRate) {
             requestedFrameRate = target;
@@ -197,8 +287,6 @@ public final class ShtarOSBrowserBridge {
     }
     public static void focus() {
         call("setFocus", new Class<?>[]{boolean.class}, true);
-        // Rinku's in-world focus path stops SDL text input; restore it while
-        // the user is actively typing into the browser.
         if (typingMode && browser != null) Minecraft.getInstance().textInputManager().startTextInput(browser);
     }
     public static void resize(int width, int height) {
@@ -209,6 +297,8 @@ public final class ShtarOSBrowserBridge {
     }
     public static void navigate(String url) {
         resetPointer();
+        BrowserTab active = getActiveTab();
+        if (active != null) active.setUrl(url);
         call("loadURL", new Class<?>[]{String.class}, url);
     }
     public static void mousePress(int x, int y, int button) {
@@ -225,7 +315,6 @@ public final class ShtarOSBrowserBridge {
     public static void mouseMove(int x, int y) {
         if (x == lastPointerX && y == lastPointerY && !physicalPointerMoved) return;
         long now = System.nanoTime();
-        // Rate-limit in-world mouse move IPC to at most 20 Hz (50 ms) unless physical pointer moved or distance > 4 px
         if (!physicalPointerMoved && now - lastSentMouseMoveNanos < 50_000_000L
                 && Math.abs(x - lastPointerX) < 4 && Math.abs(y - lastPointerY) < 4) {
             return;
@@ -249,7 +338,6 @@ public final class ShtarOSBrowserBridge {
         if (browser == null || pointerParked || typingMode || lastPointerMoveNanos == 0
                 || System.nanoTime() - lastPointerMoveNanos < POINTER_IDLE_NANOS) return;
         pointerParked = true;
-        // Put Chromium's cursor outside the video once so its hover controls can fade.
         call("sendMouseMove", new Class<?>[]{int.class, int.class}, -100, -100);
     }
     private static void resetPointer() {
@@ -270,7 +358,6 @@ public final class ShtarOSBrowserBridge {
         focusCheckTicks = 4;
     }
 
-    /** Run after Chromium has processed the click, then inspect only editable focus. */
     public static void tickFocusCheck() {
         if (focusCheckTicks < 0 || --focusCheckTicks > 0 || browser == null) return;
         focusCheckTicks = -1;
@@ -296,6 +383,26 @@ public final class ShtarOSBrowserBridge {
                 case "equals" -> proxy == args[0];
                 default -> null;
             };
+            if (method.getName().equals("onTitleChange") && args != null && args.length >= 2
+                    && args[1] instanceof String title) {
+                for (BrowserTab tab : tabs) {
+                    if (matchesCandidate(tab.getBrowser(), args[0])) {
+                        tab.setTitle(title);
+                        break;
+                    }
+                }
+                return null;
+            }
+            if (method.getName().equals("onAddressChange") && args != null && args.length >= 3
+                    && args[2] instanceof String newUrl) {
+                for (BrowserTab tab : tabs) {
+                    if (matchesCandidate(tab.getBrowser(), args[0])) {
+                        tab.setUrl(newUrl);
+                        break;
+                    }
+                }
+                return null;
+            }
             if (method.getName().equals("onCursorChange") && args != null && args.length >= 2
                     && matchesBrowser(args[0]) && args[1] instanceof Integer cursor) {
                 textCursor = cursor == textCursorId || cursor == verticalTextCursorId;
@@ -325,8 +432,7 @@ public final class ShtarOSBrowserBridge {
         displayHandler = handler;
     }
 
-    private static boolean matchesBrowser(Object candidate) {
-        Object current = browser;
+    private static boolean matchesCandidate(Object current, Object candidate) {
         if (candidate == current && current != null) return true;
         if (candidate == null || current == null) return false;
         try {
@@ -335,6 +441,11 @@ public final class ShtarOSBrowserBridge {
             return expected >= 0 && expected == actual;
         } catch (ReflectiveOperationException | RuntimeException ignored) { return false; }
     }
+
+    private static boolean matchesBrowser(Object candidate) {
+        return matchesCandidate(browser, candidate);
+    }
+
     public static void keyPress(KeyEvent event) {
         call("sendKeyPress", new Class<?>[]{KeyEvent.class}, event);
     }

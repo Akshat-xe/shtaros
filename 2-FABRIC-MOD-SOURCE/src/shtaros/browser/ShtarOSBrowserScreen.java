@@ -14,12 +14,21 @@ import net.minecraft.resources.Identifier;
 
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
+import java.util.List;
 
-/** Direct, clickable Chromium view of the in-world cinema display. */
+/**
+ * Modern, multi-tab Chromium browser GUI for the ShtarOS cinema system.
+ * Supports multiple tabs, direct URL input, fast Brave/YouTube searching,
+ * and seamless in-world cinema screen mirroring.
+ */
 public final class ShtarOSBrowserScreen extends Screen {
-    private static final int MARGIN = 12;
-    private static final int BAR_HEIGHT = 24;
-    private static final int GAP = 8;
+    private static final int MARGIN = 8;
+    private static final int TAB_BAR_Y = 6;
+    private static final int TAB_HEIGHT = 18;
+    private static final int NAV_BAR_Y = 28;
+    private static final int NAV_HEIGHT = 22;
+    private static final int HEADER_HEIGHT = NAV_BAR_Y + NAV_HEIGHT + 6;
+
     private EditBox address;
     private Button back;
     private Button forward;
@@ -28,7 +37,7 @@ public final class ShtarOSBrowserScreen extends Screen {
     private int worldHeight;
 
     public ShtarOSBrowserScreen() {
-        super(Component.literal("ShtarOS Browser"));
+        super(Component.literal("ShtarOS Multi-Tab Browser"));
     }
 
     @Override
@@ -41,48 +50,85 @@ public final class ShtarOSBrowserScreen extends Screen {
         browserReady = ShtarOSBrowserBridge.open();
         if (!browserReady) {
             addRenderableWidget(Button.builder(Component.literal("Close"), b -> onClose())
-                    .bounds(width / 2 - 40, height / 2 + 24, 80, BAR_HEIGHT).build());
+                    .bounds(width / 2 - 40, height / 2 + 24, 80, NAV_HEIGHT).build());
             return;
         }
         if (ShtarOSCinemaManager.getCurrentVideoId() != null) ShtarOSCinemaManager.stopPlayback();
 
+        // 1. Top Tab Strip
+        List<ShtarOSBrowserBridge.BrowserTab> tabList = ShtarOSBrowserBridge.getTabs();
+        int activeIdx = ShtarOSBrowserBridge.getActiveTabIndex();
+        int tabX = MARGIN;
+        int maxTabW = Math.min(130, Math.max(60, (width - MARGIN * 2 - 40) / Math.max(1, tabList.size())));
+
+        for (int i = 0; i < tabList.size(); i++) {
+            final int tabIdx = i;
+            ShtarOSBrowserBridge.BrowserTab tab = tabList.get(i);
+            boolean isActive = (i == activeIdx);
+            String rawTitle = tab.getTitle();
+            String tabText = font.plainSubstrByWidth(rawTitle, maxTabW - 20);
+            if (isActive) tabText = "● " + tabText;
+
+            int tabW = maxTabW;
+            addRenderableWidget(Button.builder(Component.literal(tabText), b -> {
+                ShtarOSBrowserBridge.switchTab(tabIdx);
+                rebuildWidgets();
+            }).bounds(tabX, TAB_BAR_Y, tabW - 16, TAB_HEIGHT).build());
+
+            // Tab close '×'
+            addRenderableWidget(Button.builder(Component.literal("×"), b -> {
+                ShtarOSBrowserBridge.closeTab(tabIdx);
+                rebuildWidgets();
+            }).bounds(tabX + tabW - 16, TAB_BAR_Y, 14, TAB_HEIGHT).build());
+
+            tabX += tabW + 2;
+        }
+
+        // [+] New Tab button
+        addRenderableWidget(Button.builder(Component.literal("+"), b -> {
+            ShtarOSBrowserBridge.newTab(ShtarOSBrowserBridge.HOME);
+            rebuildWidgets();
+        }).bounds(tabX, TAB_BAR_Y, 20, TAB_HEIGHT).build());
+
+        // 2. Navigation / Search Bar
         int x = MARGIN;
-        int y = MARGIN;
         back = addRenderableWidget(Button.builder(Component.literal("←"), b -> ShtarOSBrowserBridge.back())
-                .bounds(x, y, 28, BAR_HEIGHT).build());
-        x += 32;
+                .bounds(x, NAV_BAR_Y, 24, NAV_HEIGHT).build());
+        x += 27;
         forward = addRenderableWidget(Button.builder(Component.literal("→"), b -> ShtarOSBrowserBridge.forward())
-                .bounds(x, y, 28, BAR_HEIGHT).build());
-        x += 32;
+                .bounds(x, NAV_BAR_Y, 24, NAV_HEIGHT).build());
+        x += 27;
         addRenderableWidget(Button.builder(Component.literal("↻"), b -> ShtarOSBrowserBridge.reload())
-                .bounds(x, y, 28, BAR_HEIGHT).build());
+                .bounds(x, NAV_BAR_Y, 24, NAV_HEIGHT).build());
+        x += 27;
+        addRenderableWidget(Button.builder(Component.literal("🏠"), b -> ShtarOSBrowserBridge.home())
+                .bounds(x, NAV_BAR_Y, 28, NAV_HEIGHT).build());
         x += 32;
-        addRenderableWidget(Button.builder(Component.literal("Home"), b -> ShtarOSBrowserBridge.home())
-                .bounds(x, y, 38, BAR_HEIGHT).build());
-        x += 42;
-        int rightWidth = 80;
-        address = addRenderableWidget(new EditBox(font, x, y, Math.max(80, width - x - rightWidth - MARGIN), BAR_HEIGHT,
-                Component.literal("Address or YouTube search")));
+
+        int rightWidth = 84;
+        address = addRenderableWidget(new EditBox(font, x, NAV_BAR_Y, Math.max(80, width - x - rightWidth - MARGIN), NAV_HEIGHT,
+                Component.literal("Search Brave or enter web URL...")));
         address.setMaxLength(2048);
         address.setValue(ShtarOSBrowserBridge.url());
+
         addRenderableWidget(Button.builder(Component.literal("Go"), b -> navigate())
-                .bounds(width - MARGIN - 74, y, 32, BAR_HEIGHT).build());
+                .bounds(width - MARGIN - 78, NAV_BAR_Y, 32, NAV_HEIGHT).build());
         addRenderableWidget(Button.builder(Component.literal("Done"), b -> onClose())
-                .bounds(width - MARGIN - 38, y, 38, BAR_HEIGHT).build());
+                .bounds(width - MARGIN - 42, NAV_BAR_Y, 42, NAV_HEIGHT).build());
+
         resizeBrowser();
     }
 
     private int browserWidth() {
         int availableWidth = Math.max(1, width - 2 * MARGIN);
-        int availableHeight = Math.max(1, height - MARGIN * 2 - BAR_HEIGHT - GAP);
+        int availableHeight = Math.max(1, height - HEADER_HEIGHT - MARGIN);
         return Math.max(1, Math.min(availableWidth, availableHeight * 16 / 9));
     }
     private int browserHeight() {
-        return Math.max(1, Math.min(height - MARGIN * 2 - BAR_HEIGHT - GAP, browserWidth() * 9 / 16));
+        return Math.max(1, Math.min(height - HEADER_HEIGHT - MARGIN, browserWidth() * 9 / 16));
     }
     private int browserX() { return (width - browserWidth()) / 2; }
-    private int browserY() { return MARGIN + BAR_HEIGHT + GAP +
-            Math.max(0, height - MARGIN * 2 - BAR_HEIGHT - GAP - browserHeight()) / 2; }
+    private int browserY() { return HEADER_HEIGHT + Math.max(0, height - HEADER_HEIGHT - MARGIN - browserHeight()) / 2; }
     private boolean inside(double x, double y) {
         return x >= browserX() && x < browserX() + browserWidth()
                 && y >= browserY() && y < browserY() + browserHeight();
@@ -107,9 +153,14 @@ public final class ShtarOSBrowserScreen extends Screen {
         String text = address.getValue().trim();
         if (text.isEmpty()) return;
         String url;
-        if (text.startsWith("https://") || text.startsWith("http://")) url = text;
-        else if (!text.contains(" ") && text.contains(".")) url = "https://" + text;
-        else url = "https://duckduckgo.com/?q=" + URLEncoder.encode(text, StandardCharsets.UTF_8);
+        if (text.startsWith("https://") || text.startsWith("http://")) {
+            url = text;
+        } else if (!text.contains(" ") && text.contains(".")) {
+            url = "https://" + text;
+        } else {
+            // Search using Brave privacy search engine
+            url = "https://search.brave.com/search?q=" + URLEncoder.encode(text, StandardCharsets.UTF_8);
+        }
         address.setValue(url);
         address.setFocused(false);
         ShtarOSBrowserBridge.navigate(url);
@@ -130,7 +181,10 @@ public final class ShtarOSBrowserScreen extends Screen {
     @Override
     public void extractRenderState(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTick) {
         graphics.fill(0, 0, width, height, 0xFF141918);
-        graphics.fill(0, 0, width, browserY() - 4, 0xFF27312C);
+        // Header background (tabs + navigation bar)
+        graphics.fill(0, 0, width, browserY() - 4, 0xFF1E2623);
+        graphics.fill(0, TAB_BAR_Y + TAB_HEIGHT + 2, width, TAB_BAR_Y + TAB_HEIGHT + 3, 0xFF2F3B36);
+
         if (browserReady && ShtarOSBrowserBridge.isTextureReady()) {
             Identifier texture = ShtarOSBrowserBridge.texture();
             if (texture != null) {
@@ -138,7 +192,7 @@ public final class ShtarOSBrowserScreen extends Screen {
                         browserY() + browserHeight(), 0.0F, 0.0F, 1.0F, 1.0F);
             }
         } else {
-            String message = browserReady ? "Starting Chromium…" : ShtarOSBrowserBridge.error();
+            String message = browserReady ? "Loading page in Chromium…" : ShtarOSBrowserBridge.error();
             graphics.centeredText(font, Component.literal(message), width / 2, height / 2, 0xFFE5E5DE);
         }
         super.extractRenderState(graphics, mouseX, mouseY, partialTick);
@@ -149,8 +203,6 @@ public final class ShtarOSBrowserScreen extends Screen {
         if (super.mouseClicked(event, doubleClick)) return true;
         if (!browserReady || !inside(event.x(), event.y())) return false;
         if (event.button() < InputConstants.MOUSE_BUTTON_LEFT || event.button() > InputConstants.MOUSE_BUTTON_RIGHT) return false;
-        // The address widget keeps keyboard focus until explicitly cleared.
-        // Otherwise typed characters go into the toolbar instead of the page.
         setFocused(null);
         if (address != null) address.setFocused(false);
         ShtarOSBrowserBridge.focus();
@@ -193,6 +245,35 @@ public final class ShtarOSBrowserScreen extends Screen {
 
     @Override
     public boolean keyPressed(KeyEvent event) {
+        // Fast keyboard shortcuts
+        if (event.hasControlDown()) {
+            if (event.key() == InputConstants.KEY_T) {
+                ShtarOSBrowserBridge.newTab(ShtarOSBrowserBridge.HOME);
+                rebuildWidgets();
+                return true;
+            }
+            if (event.key() == InputConstants.KEY_W) {
+                ShtarOSBrowserBridge.closeTab(ShtarOSBrowserBridge.getActiveTabIndex());
+                rebuildWidgets();
+                return true;
+            }
+            if (event.key() == InputConstants.KEY_TAB) {
+                int next = (ShtarOSBrowserBridge.getActiveTabIndex() + 1) % Math.max(1, ShtarOSBrowserBridge.getTabs().size());
+                ShtarOSBrowserBridge.switchTab(next);
+                rebuildWidgets();
+                return true;
+            }
+            if (event.key() == InputConstants.KEY_L && address != null) {
+                setFocused(address);
+                address.setFocused(true);
+                return true;
+            }
+            if (event.key() == InputConstants.KEY_R) {
+                ShtarOSBrowserBridge.reload();
+                return true;
+            }
+        }
+
         if (address != null && address.isFocused()
                 && (event.key() == InputConstants.KEY_RETURN || event.key() == InputConstants.KEY_NUMPADENTER)) {
             navigate();

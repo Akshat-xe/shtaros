@@ -26,8 +26,10 @@ import java.nio.IntBuffer;
  */
 public class ShtarOSScreenRenderer {
     private static final Identifier HALO_TEXTURE_ID = Identifier.fromNamespaceAndPath("shtaros", "textures/cinema_halo");
+    private static final Identifier BACKING_TEXTURE_ID = Identifier.fromNamespaceAndPath("shtaros", "textures/cinema_backing");
     private static boolean haloInitialized;
     private static boolean haloAttempted;
+    private static boolean backingInitialized;
 
     public static void init() {
         LevelRenderEvents.AFTER_TRANSLUCENT_TERRAIN.register(ShtarOSScreenRenderer::render);
@@ -103,9 +105,59 @@ public class ShtarOSScreenRenderer {
                     pMinX - faceOffset - 0.012, pMaxX + faceOffset + 0.012,
                     pMinZ - faceOffset - 0.012, pMaxZ + faceOffset + 0.012);
         }
+
+        // 1. Submit Solid Black Backing Quad (100% Opaque Backing behind video quad)
+        if (backingInitialized) {
+            double backOffset = faceOffset - 0.005;
+            context.submitNodeCollector().submitCustomGeometry(
+                    poseStack,
+                    RenderTypes.entitySolid(BACKING_TEXTURE_ID),
+                    (pose, vc) -> {
+                        if (wallAlongX) {
+                            double fMinX = pMinX - camPos.x;
+                            double fMaxX = pMaxX - camPos.x;
+                            double wallMinY = pMinY - camPos.y;
+                            double wallMaxY = pMaxY - camPos.y;
+                            if (facing == Direction.NORTH) {
+                                double zNorth = pMinZ - backOffset - camPos.z;
+                                drawQuad(pose, vc, (float)fMaxX, (float)wallMinY, (float)zNorth, 0, 1,
+                                        (float)fMaxX, (float)wallMaxY, (float)zNorth, 0, 0,
+                                        (float)fMinX, (float)wallMaxY, (float)zNorth, 1, 0,
+                                        (float)fMinX, (float)wallMinY, (float)zNorth, 1, 1, 0, 0, -1);
+                            } else if (facing == Direction.SOUTH) {
+                                double zSouth = pMaxZ + backOffset - camPos.z;
+                                drawQuad(pose, vc, (float)fMinX, (float)wallMinY, (float)zSouth, 0, 1,
+                                        (float)fMinX, (float)wallMaxY, (float)zSouth, 0, 0,
+                                        (float)fMaxX, (float)wallMaxY, (float)zSouth, 1, 0,
+                                        (float)fMaxX, (float)wallMinY, (float)zSouth, 1, 1, 0, 0, 1);
+                            }
+                        } else {
+                            double fMinZ = pMinZ - camPos.z;
+                            double fMaxZ = pMaxZ - camPos.z;
+                            double wallMinY = pMinY - camPos.y;
+                            double wallMaxY = pMaxY - camPos.y;
+                            if (facing == Direction.WEST) {
+                                double xWest = pMinX - backOffset - camPos.x;
+                                drawQuad(pose, vc, (float)xWest, (float)wallMinY, (float)fMinZ, 0, 1,
+                                        (float)xWest, (float)wallMaxY, (float)fMinZ, 0, 0,
+                                        (float)xWest, (float)wallMaxY, (float)fMaxZ, 1, 0,
+                                        (float)xWest, (float)wallMinY, (float)fMaxZ, 1, 1, -1, 0, 0);
+                            } else if (facing == Direction.EAST) {
+                                double xEast = pMaxX + backOffset - camPos.x;
+                                drawQuad(pose, vc, (float)xEast, (float)wallMinY, (float)fMaxZ, 0, 1,
+                                        (float)xEast, (float)wallMaxY, (float)fMaxZ, 0, 0,
+                                        (float)xEast, (float)wallMaxY, (float)fMinZ, 1, 0,
+                                        (float)xEast, (float)wallMinY, (float)fMinZ, 1, 1, 1, 0, 0);
+                            }
+                        }
+                    }
+            );
+        }
+
+        // 2. Submit Main Screen Quad (Solid Opaque Display)
         context.submitNodeCollector().submitCustomGeometry(
                 poseStack,
-                RenderTypes.entityTranslucentEmissive(screenTexture),
+                RenderTypes.entitySolid(screenTexture),
                 (pose, vc) -> {
                     if (wallAlongX) {
                         double fMinX = pMinX + finalOffsetW - camPos.x;
@@ -184,6 +236,19 @@ public class ShtarOSScreenRenderer {
             texture.upload();
             mc.getTextureManager().register(HALO_TEXTURE_ID, texture);
             haloInitialized = true;
+
+            // Initialize Solid Black Cinema Backing Texture (100% solid, 0% opacity bleed)
+            DynamicTexture backing = new DynamicTexture("cinema_backing", 16, 16, false);
+            NativeImage bPixels = backing.getPixels();
+            if (bPixels != null) {
+                IntBuffer bColors = bPixels.getPixelBytes().order(ByteOrder.LITTLE_ENDIAN).asIntBuffer();
+                for (int i = 0; i < 16 * 16; i++) {
+                    bColors.put(0xFF000000); // Pure 100% opaque solid black
+                }
+                backing.upload();
+                mc.getTextureManager().register(BACKING_TEXTURE_ID, backing);
+                backingInitialized = true;
+            }
         } catch (RuntimeException e) {
             System.err.println("[ShtarOS Cinema] Halo texture unavailable: " + e.getMessage());
         }

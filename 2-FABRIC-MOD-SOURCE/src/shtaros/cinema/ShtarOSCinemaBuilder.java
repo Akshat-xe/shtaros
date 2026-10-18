@@ -14,14 +14,18 @@ import net.minecraft.world.level.block.state.BlockState;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
-/** Places a compact 10-block-wide cinema and eight physical speakers around the listener. */
+/** Places a 14-block-wide luxury cinema, upgraded VIP sofa lounge, and eight physical surround speakers. */
 public final class ShtarOSCinemaBuilder {
-    private static final int RADIUS = 10;
+    private static final int RADIUS = 12;
 
     public static void buildCinema(LocalPlayer player) {
         Minecraft mc = Minecraft.getInstance();
-        if (player == null || !mc.hasSingleplayerServer() || mc.getSingleplayerServer() == null) {
-            if (player != null) player.sendSystemMessage(Component.literal("§c[ShtarOS] /shtaros setup needs a singleplayer world."));
+        if (player == null) return;
+        if (!mc.hasSingleplayerServer() || mc.getSingleplayerServer() == null) {
+            player.sendSystemMessage(Component.literal("§d[ShtarOS Multiplayer] §aPrivate Cinema & Jukebox ready!"));
+            player.sendSystemMessage(Component.literal("§e• Place a 14×8 Blackstone wall with Note Blocks, then run §a/shtaros scan§e."));
+            player.sendSystemMessage(Component.literal("§e• Or right-click any placed Jukebox to play 3D spatial music."));
+            player.sendSystemMessage(Component.literal("§e• To share with 20 players: type §a/shtaros share§e so friends can click to sync!"));
             return;
         }
         Direction front = player.getDirection();
@@ -33,11 +37,11 @@ public final class ShtarOSCinemaBuilder {
 
         removePreviousGeneratedTheater(level, center, front, right);
 
-        // Ten blocks wide by six high. The renderer letterboxes this to exact 16:9.
-        BlockPos screenCenter = center.relative(front, 8);
+        // 14 blocks wide by 8 blocks high (1.75 aspect ratio, nearly identical to 16:9).
+        BlockPos screenCenter = center.relative(front, 10);
         BlockPos min = null, max = null;
-        for (int x = -5; x < 5; x++) {
-            for (int y = 1; y <= 6; y++) {
+        for (int x = -7; x <= 6; x++) {
+            for (int y = 1; y <= 8; y++) {
                 BlockPos pos = screenCenter.relative(right, x).above(y);
                 level.setBlockAndUpdate(pos, Blocks.POLISHED_BLACKSTONE.defaultBlockState());
                 if (min == null) { min = pos; max = pos; }
@@ -50,45 +54,65 @@ public final class ShtarOSCinemaBuilder {
         BlockPos screenMin = min;
         BlockPos screenMax = max;
 
-        // A visible sea-lantern rim spills real block light onto the panel and theater.
-        for (int x = -6; x <= 5; x++) {
-            for (int y = 0; y <= 7; y++) {
-                if (x == -6 || x == 5 || y == 0 || y == 7) {
+        // Sea-lantern illuminated perimeter rim (16x10 outer frame)
+        for (int x = -8; x <= 7; x++) {
+            for (int y = 0; y <= 9; y++) {
+                if (x == -8 || x == 7 || y == 0 || y == 9) {
                     level.setBlockAndUpdate(screenCenter.relative(right, x).above(y), Blocks.SEA_LANTERN.defaultBlockState());
                 }
             }
         }
-        for (int x = -4; x <= 3; x += 3) {
-            level.setBlockAndUpdate(screenCenter.relative(right, x).relative(front).above(3), Blocks.SEA_LANTERN.defaultBlockState());
+        for (int x = -5; x <= 4; x += 3) {
+            level.setBlockAndUpdate(screenCenter.relative(right, x).relative(front).above(4), Blocks.SEA_LANTERN.defaultBlockState());
         }
 
-        placeSpeaker(level, screenCenter.relative(right, -8));
-        placeSpeaker(level, screenCenter.relative(right, 7));
+        // 8 Physical Surround Sound Speakers
+        placeSpeaker(level, screenCenter.relative(right, -9));
+        placeSpeaker(level, screenCenter.relative(right, 8));
         placeSpeaker(level, center.relative(right, -RADIUS).relative(front, 2));
         placeSpeaker(level, center.relative(right, -RADIUS).relative(front, -4));
         placeSpeaker(level, center.relative(right, RADIUS).relative(front, 2));
         placeSpeaker(level, center.relative(right, RADIUS).relative(front, -4));
-        placeSpeaker(level, center.relative(front, -9).relative(right, -4));
-        placeSpeaker(level, center.relative(front, -9).relative(right, 4));
+        placeSpeaker(level, center.relative(front, -10).relative(right, -5));
+        placeSpeaker(level, center.relative(front, -10).relative(right, 5));
 
-        // Two-block viewing riser with a short stair approach behind the seats.
-        for (int x = -1; x <= 1; x++) {
+        // --- Upgraded Luxury Cinema Sofa Lounge ---
+        // Row 1: Front lounge sofa (5 seats wide with blackstone armrests)
+        for (int x = -2; x <= 2; x++) {
             BlockPos seat = center.relative(right, x).relative(front, -2);
             level.setBlockAndUpdate(seat, Blocks.POLISHED_BLACKSTONE.defaultBlockState());
-            level.setBlockAndUpdate(seat.above(), Blocks.POLISHED_BLACKSTONE.defaultBlockState());
+            level.setBlockAndUpdate(seat.above(), Blocks.DARK_OAK_STAIRS.defaultBlockState().setValue(StairBlock.FACING, front));
+        }
+        // Armrests Row 1
+        level.setBlockAndUpdate(center.relative(right, -3).relative(front, -2), Blocks.POLISHED_BLACKSTONE.defaultBlockState());
+        level.setBlockAndUpdate(center.relative(right, -3).relative(front, -2).above(), Blocks.POLISHED_BLACKSTONE.defaultBlockState());
+        level.setBlockAndUpdate(center.relative(right, 3).relative(front, -2), Blocks.POLISHED_BLACKSTONE.defaultBlockState());
+        level.setBlockAndUpdate(center.relative(right, 3).relative(front, -2).above(), Blocks.POLISHED_BLACKSTONE.defaultBlockState());
+
+        // Row 2: Raised VIP Riser Sofa (elevated 1 block for unobstructed view)
+        for (int x = -3; x <= 3; x++) {
+            for (int z = -6; z <= -4; z++) {
+                BlockPos floor = center.relative(right, x).relative(front, z);
+                level.setBlockAndUpdate(floor, Blocks.POLISHED_BLACKSTONE.defaultBlockState());
+                level.setBlockAndUpdate(floor.above(), Blocks.POLISHED_BLACKSTONE.defaultBlockState());
+            }
+        }
+        for (int x = -2; x <= 2; x++) {
+            BlockPos seat = center.relative(right, x).relative(front, -5);
             level.setBlockAndUpdate(seat.above(2), Blocks.DARK_OAK_STAIRS.defaultBlockState().setValue(StairBlock.FACING, front));
         }
-        level.setBlockAndUpdate(center.relative(front, -4), Blocks.POLISHED_BLACKSTONE_STAIRS.defaultBlockState().setValue(StairBlock.FACING, front));
-        level.setBlockAndUpdate(center.relative(front, -3), Blocks.POLISHED_BLACKSTONE.defaultBlockState());
-        level.setBlockAndUpdate(center.relative(front, -3).above(), Blocks.POLISHED_BLACKSTONE_STAIRS.defaultBlockState().setValue(StairBlock.FACING, front));
-        BlockPos oldPowerBlock = center.relative(front, 11).relative(right, 13);
-        if (level.getBlockState(oldPowerBlock).is(Blocks.REDSTONE_BLOCK))
-            level.setBlockAndUpdate(oldPowerBlock, Blocks.AIR.defaultBlockState());
+        // VIP Armrests
+        level.setBlockAndUpdate(center.relative(right, -3).relative(front, -5).above(2), Blocks.POLISHED_BLACKSTONE.defaultBlockState());
+        level.setBlockAndUpdate(center.relative(right, 3).relative(front, -5).above(2), Blocks.POLISHED_BLACKSTONE.defaultBlockState());
+
+        // Smooth Side Access Stairs to VIP Riser
+        level.setBlockAndUpdate(center.relative(right, -4).relative(front, -5), Blocks.POLISHED_BLACKSTONE_STAIRS.defaultBlockState().setValue(StairBlock.FACING, right.getOpposite()));
+        level.setBlockAndUpdate(center.relative(right, 4).relative(front, -5), Blocks.POLISHED_BLACKSTONE_STAIRS.defaultBlockState().setValue(StairBlock.FACING, right));
 
         mc.execute(() -> {
             ShtarOSCinemaManager.setScreen(screenMin, screenMax, front.getOpposite());
             bindSpeakers(center, front);
-            player.sendSystemMessage(Component.literal("§a[ShtarOS] 10×6 screen, raised seating, eight physical speakers, 10-block side radius."));
+            player.sendSystemMessage(Component.literal("§a[ShtarOS] 14×8 widescreen cinema, luxury VIP lounge sofa, eight physical surround speakers built!"));
             java.util.concurrent.CompletableFuture.runAsync(() -> {
                 for (int i = 0; i < 20; i++) {
                     if (ShtarOSBrowserBridge.isAvailable()) {
@@ -99,7 +123,7 @@ public final class ShtarOSCinemaBuilder {
                         });
                         if (ShtarOSBrowserBridge.isOpen()) {
                             mc.execute(() -> {
-                                if (player != null) player.sendSystemMessage(Component.literal("§d[ShtarOS] §aIn-world browser active! Left-click screen or press [I] to control."));
+                                if (player != null) player.sendSystemMessage(Component.literal("§d[ShtarOS] §aIn-world browser active! Left-click screen or press [U] to control."));
                             });
                             break;
                         }
@@ -112,32 +136,31 @@ public final class ShtarOSCinemaBuilder {
     }
 
     private record TheaterSite(BlockPos center, Direction front) {
-        BlockPos screenCenter() { return center.relative(front, 8); }
+        BlockPos screenCenter() { return center.relative(front, 10); }
         Direction right() { return front.getClockWise(); }
         BlockPos screenMin() {
-            BlockPos a = screenCenter().relative(right(), -5).above();
-            BlockPos b = screenCenter().relative(right(), 4).above(6);
+            BlockPos a = screenCenter().relative(right(), -7).above();
+            BlockPos b = screenCenter().relative(right(), 6).above(8);
             return new BlockPos(Math.min(a.getX(), b.getX()), a.getY(), Math.min(a.getZ(), b.getZ()));
         }
         BlockPos screenMax() {
-            BlockPos a = screenCenter().relative(right(), -5).above();
-            BlockPos b = screenCenter().relative(right(), 4).above(6);
+            BlockPos a = screenCenter().relative(right(), -7).above();
+            BlockPos b = screenCenter().relative(right(), 6).above(8);
             return new BlockPos(Math.max(a.getX(), b.getX()), b.getY(), Math.max(a.getZ(), b.getZ()));
         }
     }
 
-    /** Only recognizes our distinctive ten-by-six panel and sea-lantern rim. */
     private static boolean matchesSite(LocalPlayer player, TheaterSite site) {
         BlockPos screen = site.screenCenter();
         Direction right = site.right();
         int rim = 0;
-        for (int x : new int[]{-6, 5}) for (int y : new int[]{0, 7})
+        for (int x : new int[]{-8, 7}) for (int y : new int[]{0, 9})
             if (player.level().getBlockState(screen.relative(right, x).above(y)).is(Blocks.SEA_LANTERN)) rim++;
-        if (rim < 3) return false;
+        if (rim < 2) return false;
         int panel = 0;
-        for (int x = -5; x < 5; x++) for (int y = 1; y <= 6; y++)
+        for (int x = -7; x <= 6; x++) for (int y = 1; y <= 8; y++)
             if (player.level().getBlockState(screen.relative(right, x).above(y)).is(Blocks.POLISHED_BLACKSTONE)) panel++;
-        return panel >= 12;
+        return panel >= 16;
     }
 
     private static TheaterSite nearbySite(LocalPlayer player) {
@@ -150,13 +173,13 @@ public final class ShtarOSCinemaBuilder {
             BlockPos max = ShtarOSCinemaManager.getScreenMax();
             BlockPos screen = new BlockPos((min.getX() + max.getX() + right.getStepX()) / 2,
                     min.getY() - 1, (min.getZ() + max.getZ() + right.getStepZ()) / 2);
-            TheaterSite bound = new TheaterSite(screen.relative(front.getOpposite(), 8), front);
-            if (standing.distSqr(bound.center()) <= 14 * 14 && matchesSite(player, bound)) return bound;
+            TheaterSite bound = new TheaterSite(screen.relative(front.getOpposite(), 10), front);
+            if (standing.distSqr(bound.center()) <= 18 * 18 && matchesSite(player, bound)) return bound;
         }
         TheaterSite nearest = null;
         double bestDistance = Double.MAX_VALUE;
-        for (int dx = -10; dx <= 10; dx++) for (int dz = -10; dz <= 10; dz++) {
-            for (int dy = -3; dy <= 3; dy++) {
+        for (int dx = -14; dx <= 14; dx++) for (int dz = -14; dz <= 14; dz++) {
+            for (int dy = -4; dy <= 4; dy++) {
                 BlockPos center = standing.offset(dx, dy, dz);
                 for (Direction front : Direction.Plane.HORIZONTAL) {
                     TheaterSite candidate = new TheaterSite(center, front);
@@ -175,49 +198,69 @@ public final class ShtarOSCinemaBuilder {
         BlockPos screen = site.screenCenter();
         Direction front = site.front();
         Direction right = site.right();
-        for (int x = -5; x < 5; x++) for (int y = 1; y <= 6; y++)
+        for (int x = -7; x <= 6; x++) for (int y = 1; y <= 8; y++)
             blocks.put(screen.relative(right, x).above(y), Blocks.POLISHED_BLACKSTONE.defaultBlockState());
-        for (int x = -6; x <= 5; x++) for (int y = 0; y <= 7; y++)
-            if (x == -6 || x == 5 || y == 0 || y == 7)
+        for (int x = -8; x <= 7; x++) for (int y = 0; y <= 9; y++)
+            if (x == -8 || x == 7 || y == 0 || y == 9)
                 blocks.put(screen.relative(right, x).above(y), Blocks.SEA_LANTERN.defaultBlockState());
-        for (int x = -4; x <= 3; x += 3)
-            blocks.put(screen.relative(right, x).relative(front).above(3), Blocks.SEA_LANTERN.defaultBlockState());
+        for (int x = -5; x <= 4; x += 3)
+            blocks.put(screen.relative(right, x).relative(front).above(4), Blocks.SEA_LANTERN.defaultBlockState());
+
         BlockPos[] floors = {
-                screen.relative(right, -8), screen.relative(right, 7),
+                screen.relative(right, -9), screen.relative(right, 8),
                 center.relative(right, -RADIUS).relative(front, 2),
                 center.relative(right, -RADIUS).relative(front, -4),
                 center.relative(right, RADIUS).relative(front, 2),
                 center.relative(right, RADIUS).relative(front, -4),
-                center.relative(front, -9).relative(right, -4),
-                center.relative(front, -9).relative(right, 4)};
+                center.relative(front, -10).relative(right, -5),
+                center.relative(front, -10).relative(right, 5)};
         for (BlockPos floor : floors) {
             blocks.put(floor, Blocks.POLISHED_BLACKSTONE.defaultBlockState());
             blocks.put(floor.above(), Blocks.NOTE_BLOCK.defaultBlockState());
         }
-        for (int x = -1; x <= 1; x++) {
+
+        // Row 1
+        for (int x = -2; x <= 2; x++) {
             BlockPos seat = center.relative(right, x).relative(front, -2);
             blocks.put(seat, Blocks.POLISHED_BLACKSTONE.defaultBlockState());
-            blocks.put(seat.above(), Blocks.POLISHED_BLACKSTONE.defaultBlockState());
-            blocks.put(seat.above(2), Blocks.DARK_OAK_STAIRS.defaultBlockState().setValue(StairBlock.FACING, front));
+            blocks.put(seat.above(), Blocks.DARK_OAK_STAIRS.defaultBlockState().setValue(StairBlock.FACING, front));
         }
-        blocks.put(center.relative(front, -4), Blocks.POLISHED_BLACKSTONE_STAIRS.defaultBlockState().setValue(StairBlock.FACING, front));
-        blocks.put(center.relative(front, -3), Blocks.POLISHED_BLACKSTONE.defaultBlockState());
-        blocks.put(center.relative(front, -3).above(), Blocks.POLISHED_BLACKSTONE_STAIRS.defaultBlockState().setValue(StairBlock.FACING, front));
+        blocks.put(center.relative(right, -3).relative(front, -2), Blocks.POLISHED_BLACKSTONE.defaultBlockState());
+        blocks.put(center.relative(right, -3).relative(front, -2).above(), Blocks.POLISHED_BLACKSTONE.defaultBlockState());
+        blocks.put(center.relative(right, 3).relative(front, -2), Blocks.POLISHED_BLACKSTONE.defaultBlockState());
+        blocks.put(center.relative(right, 3).relative(front, -2).above(), Blocks.POLISHED_BLACKSTONE.defaultBlockState());
+
+        // Row 2 VIP
+        for (int x = -3; x <= 3; x++) {
+            for (int z = -6; z <= -4; z++) {
+                BlockPos floor = center.relative(right, x).relative(front, z);
+                blocks.put(floor, Blocks.POLISHED_BLACKSTONE.defaultBlockState());
+                blocks.put(floor.above(), Blocks.POLISHED_BLACKSTONE.defaultBlockState());
+            }
+        }
+        for (int x = -2; x <= 2; x++) {
+            blocks.put(center.relative(right, x).relative(front, -5).above(2), Blocks.DARK_OAK_STAIRS.defaultBlockState().setValue(StairBlock.FACING, front));
+        }
+        blocks.put(center.relative(right, -3).relative(front, -5).above(2), Blocks.POLISHED_BLACKSTONE.defaultBlockState());
+        blocks.put(center.relative(right, 3).relative(front, -5).above(2), Blocks.POLISHED_BLACKSTONE.defaultBlockState());
+        blocks.put(center.relative(right, -4).relative(front, -5), Blocks.POLISHED_BLACKSTONE_STAIRS.defaultBlockState().setValue(StairBlock.FACING, right.getOpposite()));
+        blocks.put(center.relative(right, 4).relative(front, -5), Blocks.POLISHED_BLACKSTONE_STAIRS.defaultBlockState().setValue(StairBlock.FACING, right));
+
         return blocks;
     }
 
     private static void bindSpeakers(BlockPos center, Direction front) {
         Direction right = front.getClockWise();
-        BlockPos screen = center.relative(front, 8);
+        BlockPos screen = center.relative(front, 10);
         ShtarOSSurroundManager.clearSpeakers();
-        ShtarOSSurroundManager.registerSpeaker(screen.relative(right, -8).above(), ShtarOSSurroundManager.SpeakerRole.FRONT_LEFT);
-        ShtarOSSurroundManager.registerSpeaker(screen.relative(right, 7).above(), ShtarOSSurroundManager.SpeakerRole.FRONT_RIGHT);
+        ShtarOSSurroundManager.registerSpeaker(screen.relative(right, -9).above(), ShtarOSSurroundManager.SpeakerRole.FRONT_LEFT);
+        ShtarOSSurroundManager.registerSpeaker(screen.relative(right, 8).above(), ShtarOSSurroundManager.SpeakerRole.FRONT_RIGHT);
         ShtarOSSurroundManager.registerSpeaker(center.relative(right, -RADIUS).relative(front, 2).above(), ShtarOSSurroundManager.SpeakerRole.SIDE_LEFT_FRONT);
         ShtarOSSurroundManager.registerSpeaker(center.relative(right, -RADIUS).relative(front, -4).above(), ShtarOSSurroundManager.SpeakerRole.SIDE_LEFT_REAR);
         ShtarOSSurroundManager.registerSpeaker(center.relative(right, RADIUS).relative(front, 2).above(), ShtarOSSurroundManager.SpeakerRole.SIDE_RIGHT_FRONT);
         ShtarOSSurroundManager.registerSpeaker(center.relative(right, RADIUS).relative(front, -4).above(), ShtarOSSurroundManager.SpeakerRole.SIDE_RIGHT_REAR);
-        ShtarOSSurroundManager.registerSpeaker(center.relative(front, -9).relative(right, -4).above(), ShtarOSSurroundManager.SpeakerRole.REAR_LEFT);
-        ShtarOSSurroundManager.registerSpeaker(center.relative(front, -9).relative(right, 4).above(), ShtarOSSurroundManager.SpeakerRole.REAR_RIGHT);
+        ShtarOSSurroundManager.registerSpeaker(center.relative(front, -10).relative(right, -5).above(), ShtarOSSurroundManager.SpeakerRole.REAR_LEFT);
+        ShtarOSSurroundManager.registerSpeaker(center.relative(front, -10).relative(right, 5).above(), ShtarOSSurroundManager.SpeakerRole.REAR_RIGHT);
         ShtarOSBrowserBridge.speakersChanged();
     }
 
@@ -284,26 +327,17 @@ public final class ShtarOSCinemaBuilder {
     }
 
     private static void removePreviousGeneratedTheater(ServerLevel level, BlockPos center, Direction front, Direction right) {
-        BlockPos old = center.relative(front, 11);
-        // Require the distinctive old panel and rim before removing generated materials.
-        if (!level.getBlockState(old.relative(right, -8).above()).is(Blocks.POLISHED_BLACKSTONE)
-                || !level.getBlockState(old.relative(right, 7).above(9)).is(Blocks.POLISHED_BLACKSTONE)
-                || !level.getBlockState(old.relative(right, -9)).is(Blocks.SEA_LANTERN)) return;
-        for (int x = -8; x < 8; x++) for (int y = 1; y <= 9; y++)
-            clearIf(level, old.relative(right, x).above(y), Blocks.POLISHED_BLACKSTONE);
-        for (int x = -9; x <= 8; x++) for (int y = 0; y <= 10; y++)
-            if (x == -9 || x == 8 || y == 0 || y == 10)
-                clearIf(level, old.relative(right, x).above(y), Blocks.SEA_LANTERN);
-        for (int x = -6; x <= 5; x += 4)
-            clearIf(level, old.relative(right, x).relative(front).above(5), Blocks.SEA_LANTERN);
-        clearOldSpeaker(level, old.relative(right, -11));
-        clearOldSpeaker(level, old.relative(right, 10));
-        for (int side : new int[]{-14, 14}) {
-            clearOldSpeaker(level, center.relative(right, side).relative(front, 3));
-            clearOldSpeaker(level, center.relative(right, side).relative(front, -5));
-        }
-        clearOldSpeaker(level, center.relative(front, -12).relative(right, -6));
-        clearOldSpeaker(level, center.relative(front, -12).relative(right, 6));
+        BlockPos old10 = center.relative(front, 8);
+        for (int x = -6; x <= 5; x++) for (int y = 0; y <= 7; y++)
+            clearIf(level, old10.relative(right, x).above(y), Blocks.SEA_LANTERN);
+        for (int x = -5; x < 5; x++) for (int y = 1; y <= 6; y++)
+            clearIf(level, old10.relative(right, x).above(y), Blocks.POLISHED_BLACKSTONE);
+
+        BlockPos old14 = center.relative(front, 10);
+        for (int x = -8; x <= 7; x++) for (int y = 0; y <= 9; y++)
+            clearIf(level, old14.relative(right, x).above(y), Blocks.SEA_LANTERN);
+        for (int x = -7; x <= 6; x++) for (int y = 1; y <= 8; y++)
+            clearIf(level, old14.relative(right, x).above(y), Blocks.POLISHED_BLACKSTONE);
     }
 
     private static void clearIf(ServerLevel level, BlockPos pos, net.minecraft.world.level.block.Block block) {
