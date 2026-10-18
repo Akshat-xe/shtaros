@@ -186,7 +186,7 @@ def boot_frame():
         draw.rectangle([(bar_x1 + 3, bar_y1 + 3), (bar_x1 + 3 + fill_width, bar_y2 - 3)], fill=(37, 99, 235))
 
     # Footer
-    draw.text((cx, 420), "Press 'I' or type /shtaros to open Remote", fill=(130, 140, 155), anchor="mm")
+    draw.text((cx, 420), "Press 'U' or type /shtaros to open Remote", fill=(130, 140, 155), anchor="mm")
     draw.text((cx, 460), "Spatial OpenAL Audio • 44.1kHz • Source FPS Video", fill=(160, 170, 185), anchor="mm")
 
     return Response(img.convert("RGBA").tobytes(), mimetype="application/octet-stream")

@@ -236,19 +236,32 @@ echo "⚡ Installing ShtarOS & complete mod bundle into $SHTAROS_MODS_DIR and $G
 MODS_DIR="$GAME_DIR/mods"
 mkdir -p "$SHTAROS_MODS_DIR" "$MODS_DIR"
 
-# Clean legacy or conflicting duplicate jars
 rm -f "$MODS_DIR/mineos-1.0.0.jar" "$SHTAROS_MODS_DIR/mineos-1.0.0.jar"
 rm -f "$MODS_DIR/sodium-fabric-0.9.2+mc26.3.jar" "$SHTAROS_MODS_DIR/sodium-fabric-0.9.2+mc26.3.jar"
+rm -f "$MODS_DIR"/afk-cinematics-*.jar "$SHTAROS_MODS_DIR"/afk-cinematics-*.jar
 
 cp "$ROOT/mods"/*.jar "$SHTAROS_MODS_DIR/"
 cp "$ROOT/mods"/*.jar "$MODS_DIR/"
 echo "   ✅ Installed $(ls -1 "$SHTAROS_MODS_DIR"/*.jar | wc -l | tr -d ' ') mods successfully."
 
-# 10. Install Shaderpacks
+# 10. Install Shaderpacks & Iris Configuration
 if [[ -d "$ROOT/shaderpacks" ]]; then
-    mkdir -p "$GAME_DIR/shaderpacks"
+    mkdir -p "$GAME_DIR/shaderpacks" "$GAME_DIR/config"
     cp "$ROOT/shaderpacks"/*.zip "$GAME_DIR/shaderpacks/" 2>/dev/null || true
     echo "   ✅ Installed shaderpacks into $GAME_DIR/shaderpacks"
+    if [[ ! -f "$GAME_DIR/config/iris.properties" ]]; then
+        cat << 'EOF' > "$GAME_DIR/config/iris.properties"
+#This file stores configuration options for Iris, such as the currently active shaderpack
+allowUnknownShaders=false
+colorSpace=SRGB
+disableUpdateMessage=false
+enableDebugOptions=false
+enableShaders=true
+maxShadowRenderDistance=32
+shaderPack=MakeUp-UltraFast-9.5g.zip
+EOF
+        echo "   ✅ Configured default shaderpack: MakeUp-UltraFast (macOS Metal & cross-platform optimized)"
+    fi
 fi
 
 echo ""
@@ -263,7 +276,7 @@ echo "   ➡️ Select version: 'ShtarOS'"
 echo "3. Click 'Enter the game' or 'Play'."
 echo ""
 echo "✨ IN-GAME CONTROLS:"
-echo "• Press 'I' on your keyboard to open the ShtarOS Quick Setup Remote."
+echo "• Press 'U' on your keyboard to open the ShtarOS Quick Setup Remote."
 echo "• Use '/shtaros setup' to auto-build the 16:9 cinema & 8-speaker theater."
 echo "• Use '/shtaros link <url>' to open any webpage or YouTube video."
 echo "• Use '/shtaros scan' to reconnect an existing cinema setup."

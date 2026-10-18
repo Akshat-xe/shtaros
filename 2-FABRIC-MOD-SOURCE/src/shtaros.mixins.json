@@ -11,7 +11,9 @@
     "MultiPlayerGameModeMixin",
     "MinecraftTickMixin",
     "MouseHandlerMixin",
-    "KeyboardHandlerMixin"
+    "KeyboardHandlerMixin",
+    "LevelRendererMixin",
+    "GuiRenderStateMixin"
   ],
   "injectors": {
     "defaultRequire": 1

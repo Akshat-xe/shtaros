@@ -20,7 +20,7 @@ Install the entire ShtarOS cinema, browser, 8-channel audio, and complete multip
    /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Akshat-xe/shtaros/main/install.sh)"
    ```
 4. **Automatic Setup**: The installer automatically detects your game directory, registers the **`ShtarOS`** version profile, installs all Fabric runtime libraries, deploys the 34+ performance & multiplayer mods, unpacks shaderpacks, and prepares the background media service without touching your survival worlds or edits.
-5. **Launch & Play**: Open your launcher, select the **`ShtarOS`** profile from the versions dropdown, click **Play**, join your world, and press **`I`** or type `/shtaros setup`!
+5. **Launch & Play**: Open your launcher, select the **`ShtarOS`** profile from the versions dropdown, click **Play**, join your world, and press **`U`** or type `/shtaros setup`!
 
 ---
 
@@ -37,7 +37,7 @@ Install the entire ShtarOS cinema, browser, 8-channel audio, and complete multip
 
 | Action | Control / Command | Description |
 |---|---|---|
-| **Quick Remote** | Press **`I`** | Opens the ShtarOS 4-Action Remote (Theater, Jukebox, Repair, Delete). |
+| **Quick Remote** | Press **`U`** | Opens the ShtarOS 4-Action Remote (Theater, Jukebox, Repair, Delete). |
 | **Auto-Build Cinema** | `/shtaros setup` | Automatically constructs the 16:9 cinema wall, seating riser, 8 speaker blocks, and boots the in-world browser. |
 | **Stream Any Video / Webpage** | `/shtaros link <URL>` | Opens and streams any YouTube video, Twitch stream, or website directly on the screen. |
 | **Direct 3D Interaction** | Look & **Left-Click** | Click buttons, links, search bars, and video controls in 3D right on the cinema wall. |
@@ -129,7 +129,6 @@ When you run the 1-line installer, ShtarOS automatically bundles and installs th
   - *RenderPearl v2.8.0-beta.4*
 - **LambDynamicLights**: Real-time holding torch and sea lantern dynamic lighting.
 - **Enhanced Block Entities**: Smooth rendering for chests, signs, and bells.
-- **AFK Cinematics**: Cinematic camera orbits when away from keyboard.
 - **Full Brightness Toggle**: Clean ambient brightness toggle.
 
 ### 🎮 Multiplayer, QoL & World Exploration

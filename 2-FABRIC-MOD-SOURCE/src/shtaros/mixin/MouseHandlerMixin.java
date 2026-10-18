@@ -27,7 +27,15 @@ public class MouseHandlerMixin {
     @Inject(method = "onButton", at = @At("HEAD"), cancellable = true)
     private void onMouseButton(long window, MouseButtonInfo info, int action, CallbackInfo ci) {
         Minecraft mc = Minecraft.getInstance();
-        if (mc.gui == null || mc.gui.screen() != null || mc.player == null) {
+        if (mc.gui == null || mc.player == null) {
+            return;
+        }
+        if (mc.gui.screen() != null) {
+            try {
+                if (!org.lwjgl.sdl.SDLMouse.SDL_CursorVisible()) {
+                    org.lwjgl.sdl.SDLMouse.SDL_ShowCursor();
+                }
+            } catch (Throwable ignored) {}
             return;
         }
         if (ShtarOSCinemaView.isActive()) {

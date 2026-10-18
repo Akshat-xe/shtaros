@@ -37,18 +37,42 @@ public class MinecraftTickMixin {
         ShtarOSCinemaView.tick();
 
 
-        // Check for 'I' key via registered Minecraft KeyMapping or raw input edge
+        // Watchdog & automatic recovery for disappearing mouse cursor in menus/options
+        if (mc.gui != null && mc.gui.screen() != null) {
+            try {
+                if (mc.mouseHandler.isMouseGrabbed()) {
+                    mc.mouseHandler.releaseMouse();
+                }
+                if (!org.lwjgl.sdl.SDLMouse.SDL_CursorVisible()) {
+                    org.lwjgl.sdl.SDLMouse.SDL_ShowCursor();
+                }
+                long winHandle = mc.getWindow().handle();
+                org.lwjgl.sdl.SDLMouse.SDL_SetWindowRelativeMouseMode(winHandle, false);
+                if (mc.mouseHandler.xpos() < 0 || mc.mouseHandler.ypos() < 0
+                        || mc.mouseHandler.xpos() > mc.getWindow().getScreenWidth()
+                        || mc.mouseHandler.ypos() > mc.getWindow().getScreenHeight()) {
+                    mc.mouseHandler.resyncMousePosition();
+                }
+            } catch (Throwable ignored) {}
+
+            if (ShtarOSBrowserBridge.isTypingMode()) {
+                ShtarOSBrowserBridge.setTypingMode(false);
+            }
+        }
+
+        // Check for Remote key via registered Minecraft KeyMapping or raw input edge
         if (mc.gui != null && mc.gui.screen() == null && mc.player != null) {
             boolean triggered = false;
             if (shtaros.ShtarOSMod.REMOTE_KEY != null && shtaros.ShtarOSMod.REMOTE_KEY.consumeClick()) {
                 triggered = true;
             }
             try {
-                boolean isIDown = InputConstants.isKeyDown(InputConstants.KEY_I);
-                if (isIDown && !wasIKeyDown) {
+                boolean isRemoteDown = (shtaros.ShtarOSMod.REMOTE_KEY != null && shtaros.ShtarOSMod.REMOTE_KEY.isDown())
+                        || InputConstants.isKeyDown(InputConstants.KEY_U);
+                if (isRemoteDown && !wasIKeyDown) {
                     triggered = true;
                 }
-                wasIKeyDown = isIDown;
+                wasIKeyDown = isRemoteDown;
             } catch (Throwable ignored) {}
 
             if (triggered && !ShtarOSBrowserBridge.isTypingMode()) {

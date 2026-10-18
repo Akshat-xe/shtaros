@@ -236,9 +236,9 @@ echo "⚡ Installing ShtarOS & complete mod bundle into $SHTAROS_MODS_DIR and $G
 MODS_DIR="$GAME_DIR/mods"
 mkdir -p "$SHTAROS_MODS_DIR" "$MODS_DIR"
 
-# Clean legacy or conflicting duplicate jars
 rm -f "$MODS_DIR/mineos-1.0.0.jar" "$SHTAROS_MODS_DIR/mineos-1.0.0.jar"
 rm -f "$MODS_DIR/sodium-fabric-0.9.2+mc26.3.jar" "$SHTAROS_MODS_DIR/sodium-fabric-0.9.2+mc26.3.jar"
+rm -f "$MODS_DIR"/afk-cinematics-*.jar "$SHTAROS_MODS_DIR"/afk-cinematics-*.jar
 
 cp "$ROOT/mods"/*.jar "$SHTAROS_MODS_DIR/"
 cp "$ROOT/mods"/*.jar "$MODS_DIR/"
@@ -263,7 +263,7 @@ echo "   ➡️ Select version: 'ShtarOS'"
 echo "3. Click 'Enter the game' or 'Play'."
 echo ""
 echo "✨ IN-GAME CONTROLS:"
-echo "• Press 'I' on your keyboard to open the ShtarOS Quick Setup Remote."
+echo "• Press 'U' on your keyboard to open the ShtarOS Quick Setup Remote."
 echo "• Use '/shtaros setup' to auto-build the 16:9 cinema & 8-speaker theater."
 echo "• Use '/shtaros link <url>' to open any webpage or YouTube video."
 echo "• Use '/shtaros scan' to reconnect an existing cinema setup."
