@@ -65,21 +65,25 @@ public class MouseHandlerMixin {
             return;
         }
 
-        // Allow Shift + Right-Click to pass through for opening full GUI
-        if (info.button() == 3 && mc.player.isShiftKeyDown()) {
+        // Shift + Right-Click opens full browser GUI with tabs and devtools
+        if (info.button() == 1 && mc.player.isShiftKeyDown()) {
+            if (action == 1) {
+                mc.setScreenAndShow(new shtaros.browser.ShtarOSBrowserScreen());
+            }
+            ci.cancel();
             return;
         }
 
-        if (info.button() >= 1 && info.button() <= 3) {
+        if (info.button() >= 0 && info.button() <= 2) {
             if (action == 1) { // Pressed
                 ShtarOSBrowserBridge.focus();
                 ShtarOSBrowserBridge.mouseMove(hit.px(), hit.py());
                 ShtarOSBrowserBridge.mousePress(hit.px(), hit.py(), info.button());
                 pressedButton = info.button();
                 pressHit = hit;
-                pressedTextField = info.button() == 1 && ShtarOSBrowserBridge.isTextCursor();
+                pressedTextField = info.button() == 0 && ShtarOSBrowserBridge.isTextCursor();
                 if (pressedTextField) ShtarOSBrowserBridge.setTypingMode(true);
-                else if (info.button() == 1 && ShtarOSBrowserBridge.isTypingMode()
+                else if (info.button() == 0 && ShtarOSBrowserBridge.isTypingMode()
                         && !ShtarOSBrowserBridge.isManualTypingMode())
                     ShtarOSBrowserBridge.setTypingMode(false);
             } else if (action == 0) { // Released

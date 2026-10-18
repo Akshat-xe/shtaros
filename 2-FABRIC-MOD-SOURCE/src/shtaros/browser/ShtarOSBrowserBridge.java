@@ -14,6 +14,13 @@ import java.util.concurrent.CopyOnWriteArrayList;
 
 /** Optional bridge to Rinku with full multi-tab support and hardware video capture. */
 public final class ShtarOSBrowserBridge {
+    public static String getHomeUrl() {
+        try {
+            java.io.File localHtml = new java.io.File(Minecraft.getInstance().gameDirectory, "shtaros/newtab.html");
+            if (localHtml.exists()) return localHtml.toURI().toString();
+        } catch (Throwable ignored) {}
+        return "https://search.brave.com/";
+    }
     public static final String HOME = "https://search.brave.com/";
     private static final String FOCUS_PREFIX = "shtaros-focus-" + UUID.randomUUID() + ":";
 
@@ -54,9 +61,10 @@ public final class ShtarOSBrowserBridge {
     private static Class<?> browserClass;
     private static String error = "";
 
-    // Off-screen Chromium paints and uploads every changed pixel through Minecraft.
-    private static int currentWidth = 960;
-    private static int currentHeight = 540;
+    // Off-screen Chromium paints and uploads every changed pixel through Minecraft (1280x720 HD base).
+    private static int currentWidth = 1280;
+    private static int currentHeight = 720;
+    private static double zoomFactor = 0.85; // Default 85% zoom for ideal desktop scale
     private static int requestedFrameRate = 30;
     private static long nextFrameRateCheck;
     private static long lastVideoStatsNanos;
@@ -80,6 +88,44 @@ public final class ShtarOSBrowserBridge {
     public static int getWidth() { return currentWidth; }
     public static int getHeight() { return currentHeight; }
 
+    public static double getZoom() { return zoomFactor; }
+    public static void setZoom(double factor) {
+        zoomFactor = Math.max(0.50, Math.min(2.0, factor));
+        applyZoom();
+    }
+    public static void zoomIn() { setZoom(zoomFactor + 0.05); }
+    public static void zoomOut() { setZoom(zoomFactor - 0.05); }
+    public static void resetZoom() { setZoom(0.85); }
+
+    public static void applyZoom() {
+        if (browser == null) return;
+        // Chromium logarithmic zoomLevel: 0.0 = 100%, 1.2^level = zoomFactor
+        double level = Math.log(zoomFactor) / Math.log(1.2);
+        call("setZoomLevel", new Class<?>[]{double.class}, level);
+        int pct = (int) Math.round(zoomFactor * 100);
+        call("executeJavaScript", new Class<?>[]{String.class, String.class, int.class},
+                "try{document.documentElement.style.zoom='" + pct + "%';}catch(e){}", url(), 0);
+    }
+
+    public static void openDevTools() {
+        if (browser == null) return;
+        try {
+            browserClass.getMethod("openDevTools").invoke(browser);
+            System.out.println("[ShtarOS Browser] DevTools opened");
+        } catch (Throwable t) {
+            System.err.println("[ShtarOS Browser] openDevTools error: " + rootMessage(t));
+        }
+    }
+    public static void closeDevTools() {
+        if (browser == null) return;
+        try {
+            browserClass.getMethod("closeDevTools").invoke(browser);
+        } catch (Throwable ignored) {}
+    }
+    public static void toggleDevTools() {
+        openDevTools();
+    }
+
     public static List<BrowserTab> getTabs() { return List.copyOf(tabs); }
     public static int getActiveTabIndex() { return activeTabIndex; }
     public static BrowserTab getActiveTab() {
@@ -89,7 +135,7 @@ public final class ShtarOSBrowserBridge {
 
     public static boolean newTab(String targetUrl) {
         if (!isOpen() && !open()) return false;
-        String dest = (targetUrl == null || targetUrl.isBlank()) ? HOME : targetUrl;
+        String dest = (targetUrl == null || targetUrl.isBlank() || targetUrl.equals(HOME)) ? getHomeUrl() : targetUrl;
         try {
             Class<?> api = Class.forName("de.keksuccino.rinku.Rinku");
             Object created = api.getMethod("createBrowser", String.class, boolean.class)
@@ -114,6 +160,7 @@ public final class ShtarOSBrowserBridge {
         resetPointer();
         call("setWindowlessFrameRate", new Class<?>[]{int.class}, requestedFrameRate);
         resize(currentWidth, currentHeight);
+        applyZoom();
         focus();
         ShtarOSBrowserAudioCapture.setTarget(browser);
     }
@@ -121,7 +168,7 @@ public final class ShtarOSBrowserBridge {
     public static void closeTab(int index) {
         if (index < 0 || index >= tabs.size()) return;
         if (tabs.size() <= 1) {
-            navigate(HOME);
+            navigate(getHomeUrl());
             return;
         }
         BrowserTab removed = tabs.remove(index);
@@ -195,11 +242,20 @@ public final class ShtarOSBrowserBridge {
             catch (ReflectiveOperationException | LinkageError | RuntimeException focusError) {
                 System.err.println("[ShtarOS Browser] Automatic text focus unavailable: " + rootMessage(focusError));
             }
+            try { installContextMenuHandler(api); }
+            catch (Throwable contextError) {
+                System.err.println("[ShtarOS Browser] Context menu handler skipped: " + rootMessage(contextError));
+            }
+            try { installLoadHandler(api); }
+            catch (Throwable loadError) {
+                System.err.println("[ShtarOS Browser] Load handler skipped: " + rootMessage(loadError));
+            }
+            String initialUrl = getHomeUrl();
             Object created = api.getMethod("createBrowser", String.class, boolean.class)
-                    .invoke(null, HOME, false);
+                    .invoke(null, initialUrl, false);
             if (created == null) throw new IllegalStateException("The browser did not start");
             tabs.clear();
-            BrowserTab initialTab = new BrowserTab(UUID.randomUUID().toString(), "Brave Search", HOME, created);
+            BrowserTab initialTab = new BrowserTab(UUID.randomUUID().toString(), "New Tab", initialUrl, created);
             tabs.add(initialTab);
             activeTabIndex = 0;
             browser = created;
@@ -211,6 +267,7 @@ public final class ShtarOSBrowserBridge {
             nextFrameRateCheck = 0;
             call("setWindowlessFrameRate", new Class<?>[]{int.class}, requestedFrameRate);
             resize(currentWidth, currentHeight);
+            applyZoom();
             focus();
             return true;
         } catch (ReflectiveOperationException | LinkageError | RuntimeException e) {
@@ -301,12 +358,23 @@ public final class ShtarOSBrowserBridge {
         if (active != null) active.setUrl(url);
         call("loadURL", new Class<?>[]{String.class}, url);
     }
+    public static int toRinkuButton(int mcButton) {
+        return switch (mcButton) {
+            case 0 -> 1; // Left click in Minecraft -> 1 in Rinku (CEF Left = 0)
+            case 1 -> 3; // Right click in Minecraft -> 3 in Rinku (CEF Right = 2)
+            case 2 -> 2; // Middle click in Minecraft -> 2 in Rinku (CEF Middle = 1)
+            default -> mcButton;
+        };
+    }
+
     public static void mousePress(int x, int y, int button) {
         if (pointerParked) restorePointer(x, y);
-        call("sendMousePress", new Class<?>[]{int.class, int.class, int.class}, x, y, button);
+        int rinkuBtn = toRinkuButton(button);
+        call("sendMousePress", new Class<?>[]{int.class, int.class, int.class}, x, y, rinkuBtn);
     }
     public static void mouseRelease(int x, int y, int button) {
-        call("sendMouseRelease", new Class<?>[]{int.class, int.class, int.class}, x, y, button);
+        int rinkuBtn = toRinkuButton(button);
+        call("sendMouseRelease", new Class<?>[]{int.class, int.class, int.class}, x, y, rinkuBtn);
     }
     public static void click(int x, int y, int button) {
         mousePress(x, y, button);
@@ -430,6 +498,58 @@ public final class ShtarOSBrowserBridge {
         Object client = api.getMethod("getClient").invoke(null);
         client.getClass().getMethod("addDisplayHandler", type).invoke(client, handler);
         displayHandler = handler;
+    }
+
+    private static void installContextMenuHandler(Class<?> api) {
+        try {
+            Class<?> type = Class.forName("org.cef.handler.CefContextMenuHandler");
+            Object handler = Proxy.newProxyInstance(type.getClassLoader(), new Class<?>[]{type}, (proxy, method, args) -> {
+                if (method.getName().equals("onBeforeContextMenu")) {
+                    if (args != null && args.length >= 4 && args[3] != null) {
+                        Object model = args[3];
+                        try {
+                            model.getClass().getMethod("addSeparator").invoke(model);
+                            model.getClass().getMethod("addItem", int.class, String.class).invoke(model, 28501, "Inspect Element (DevTools)");
+                        } catch (Throwable ignored) {}
+                    }
+                    return null;
+                }
+                if (method.getName().equals("onContextMenuCommand")) {
+                    if (args != null && args.length >= 4 && args[3] instanceof Integer cmdId) {
+                        if (cmdId == 28501) {
+                            openDevTools();
+                            return true;
+                        }
+                    }
+                    return false;
+                }
+                if (method.getName().equals("onContextMenuDismissed")) {
+                    return null;
+                }
+                return method.getReturnType() == boolean.class ? false : null;
+            });
+            Object client = api.getMethod("getClient").invoke(null);
+            client.getClass().getMethod("addContextMenuHandler", type).invoke(client, handler);
+            System.out.println("[ShtarOS Browser] Context menu & DevTools handler installed");
+        } catch (Throwable t) {
+            System.err.println("[ShtarOS Browser] ContextMenuHandler installation skipped: " + rootMessage(t));
+        }
+    }
+
+    private static void installLoadHandler(Class<?> api) {
+        try {
+            Class<?> type = Class.forName("org.cef.handler.CefLoadHandler");
+            Object handler = Proxy.newProxyInstance(type.getClassLoader(), new Class<?>[]{type}, (proxy, method, args) -> {
+                if (method.getName().equals("onLoadEnd")) {
+                    Minecraft.getInstance().execute(ShtarOSBrowserBridge::applyZoom);
+                }
+                return null;
+            });
+            Object client = api.getMethod("getClient").invoke(null);
+            client.getClass().getMethod("addLoadHandler", type).invoke(client, handler);
+        } catch (Throwable t) {
+            System.err.println("[ShtarOS Browser] LoadHandler installation skipped: " + rootMessage(t));
+        }
     }
 
     private static boolean matchesCandidate(Object current, Object candidate) {

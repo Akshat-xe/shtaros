@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>New Tab</title>
+<style>
+  * {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+  }
+  html, body {
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background: #12151a url('wallpaper.jpg') no-repeat center center / cover;
+    color: #ffffff;
+    user-select: none;
+    -webkit-user-select: none;
+  }
+  .overlay {
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(circle at center, rgba(0,0,0,0.1) 0%, rgba(0,0,0,0.45) 100%);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
+    padding-top: 10vh;
+  }
+  /* Shortcuts Row */
+  .shortcuts-container {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 20px;
+    margin-bottom: 34px;
+    flex-wrap: wrap;
+    max-width: 90%;
+  }
+  .shortcut-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-decoration: none;
+    color: #f1f3f5;
+    transition: transform 0.18s cubic-bezier(0.2, 0, 0, 1), filter 0.18s ease;
+    cursor: pointer;
+    width: 74px;
+  }
+  .shortcut-card:hover {
+    transform: translateY(-4px) scale(1.05);
+    filter: brightness(1.15);
+  }
+  .shortcut-icon {
+    width: 52px;
+    height: 52px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.22);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.35);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+    margin-bottom: 8px;
+  }
+  .shortcut-icon svg {
+    width: 28px;
+    height: 28px;
+  }
+  .shortcut-label {
+    font-size: 11px;
+    font-weight: 500;
+    text-shadow: 0 1px 4px rgba(0,0,0,0.85);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 72px;
+    text-align: center;
+  }
+  /* Search Bar */
+  .search-wrapper {
+    width: 100%;
+    max-width: 640px;
+    padding: 0 16px;
+  }
+  .search-box {
+    width: 100%;
+    height: 52px;
+    background: rgba(22, 26, 33, 0.88);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.16);
+    border-radius: 26px;
+    display: flex;
+    align-items: center;
+    padding: 0 20px;
+    box-shadow: 0 12px 36px rgba(0, 0, 0, 0.45);
+    transition: all 0.2s ease;
+  }
+  .search-box:focus-within {
+    border-color: #fb542b;
+    box-shadow: 0 14px 42px rgba(251, 84, 43, 0.25), 0 0 0 2px rgba(251, 84, 43, 0.35);
+    background: rgba(18, 22, 28, 0.95);
+  }
+  .brave-lion {
+    width: 22px;
+    height: 22px;
+    margin-right: 14px;
+    flex-shrink: 0;
+  }
+  .search-input {
+    flex: 1;
+    background: transparent;
+    border: none;
+    outline: none;
+    color: #ffffff;
+    font-size: 16px;
+    font-weight: 400;
+  }
+  .search-input::placeholder {
+    color: rgba(255, 255, 255, 0.55);
+  }
+  /* Footer credit */
+  .footer-credit {
+    position: absolute;
+    bottom: 24px;
+    left: 28px;
+    font-size: 12px;
+    color: rgba(255, 255, 255, 0.7);
+    text-shadow: 0 1px 4px rgba(0,0,0,0.9);
+  }
+  .settings-btn {
+    position: absolute;
+    bottom: 24px;
+    right: 28px;
+    font-size: 13px;
+    color: rgba(255, 255, 255, 0.75);
+    background: rgba(0, 0, 0, 0.4);
+    padding: 6px 14px;
+    border-radius: 16px;
+    backdrop-filter: blur(8px);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    text-decoration: none;
+  }
+  .settings-btn:hover {
+    color: #fff;
+    background: rgba(0, 0, 0, 0.65);
+  }
+</style>
+</head>
+<body>
+<div class="overlay">
+  <!-- Shortcuts -->
+  <div class="shortcuts-container">
+    <a class="shortcut-card" href="https://www.youtube.com">
+      <div class="shortcut-icon" style="background:#ff0000;">
+        <svg viewBox="0 0 24 24" fill="#ffffff"><path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/></svg>
+      </div>
+      <span class="shortcut-label">YouTube</span>
+    </a>
+
+    <a class="shortcut-card" href="https://music.youtube.com">
+      <div class="shortcut-icon" style="background:#ff0000;">
+        <svg viewBox="0 0 24 24" fill="#ffffff"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 14.5c-2.49 0-4.5-2.01-4.5-4.5S9.51 7.5 12 7.5s4.5 2.01 4.5 4.5-2.01 4.5-4.5 4.5zm0-5.5c-.55 0-1 .45-1 1s.45 1 1 1 1-.45 1-1-.45-1-1-1z"/></svg>
+      </div>
+      <span class="shortcut-label">YT Music</span>
+    </a>
+
+    <a class="shortcut-card" href="https://gemini.google.com">
+      <div class="shortcut-icon" style="background:#1a73e8;">
+        <svg viewBox="0 0 24 24" fill="#ffffff"><path d="M12 2L13.8 8.2L20 10L13.8 11.8L12 18L10.2 11.8L4 10L10.2 8.2L12 2Z"/></svg>
+      </div>
+      <span class="shortcut-label">Gemini</span>
+    </a>
+
+    <a class="shortcut-card" href="https://web.whatsapp.com">
+      <div class="shortcut-icon" style="background:#25d366;">
+        <svg viewBox="0 0 24 24" fill="#ffffff"><path d="M12.04 2c-5.46 0-9.91 4.45-9.91 9.91 0 1.75.46 3.45 1.32 4.95L2.05 22l5.25-1.38c1.45.79 3.08 1.21 4.74 1.21 5.46 0 9.91-4.45 9.91-9.91 0-2.65-1.03-5.14-2.9-7.01A9.816 9.816 0 0 0 12.04 2zm5.79 14.07c-.24.68-1.39 1.3-1.93 1.39-.51.08-1.17.12-3.37-.78-2.67-1.1-4.39-3.8-4.53-3.98-.13-.18-1.07-1.42-1.07-2.71 0-1.29.68-1.92.92-2.18.24-.26.53-.33.71-.33.18 0 .36 0 .51.01.17.01.39-.06.6.45.24.58.82 1.99.89 2.14.07.15.12.33.02.53-.1.2-.15.33-.3.51-.15.18-.32.4-.46.54-.15.15-.31.32-.13.63.18.31.79 1.3 1.7 2.11 1.17 1.04 2.16 1.36 2.47 1.51.31.15.49.13.67-.08.18-.21.78-.91.99-1.22.21-.31.42-.26.71-.15.29.11 1.83.86 2.15 1.02.31.16.53.24.6.36.08.13.08.76-.16 1.44z"/></svg>
+      </div>
+      <span class="shortcut-label">WhatsApp</span>
+    </a>
+
+    <a class="shortcut-card" href="https://fast.com">
+      <div class="shortcut-icon" style="background:#e50914;">
+        <svg viewBox="0 0 24 24" fill="#ffffff"><path d="M12 4C7.03 4 3 8.03 3 13c0 2.21.8 4.23 2.12 5.8l1.42-1.42C5.46 16.14 5 14.63 5 13c0-3.87 3.13-7 7-7s7 3.13 7 7c0 1.63-.46 3.14-1.54 4.38l1.42 1.42C20.2 17.23 21 15.21 21 13c0-4.97-4.03-9-9-9zm-1 5v5l4.25 2.52.77-1.28-3.52-2.09V9z"/></svg>
+      </div>
+      <span class="shortcut-label">Fast.com</span>
+    </a>
+
+    <a class="shortcut-card" href="https://mail.google.com">
+      <div class="shortcut-icon" style="background:#ea4335;">
+        <svg viewBox="0 0 24 24" fill="#ffffff"><path d="M20 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z"/></svg>
+      </div>
+      <span class="shortcut-label">Gmail</span>
+    </a>
+
+    <a class="shortcut-card" href="https://www.google.com">
+      <div class="shortcut-icon" style="background:#ffffff;">
+        <svg viewBox="0 0 24 24"><path fill="#4285F4" d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.82-2.4 3.68v3.05h3.88c2.27-2.09 3.665-5.17 3.665-9.17z"/><path fill="#34A853" d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.1-6.72-4.93H1.25v3.15C3.27 21.43 7.33 24 12 24z"/><path fill="#FBBC05" d="M5.28 14.27c-.25-.72-.38-1.49-.38-2.27s.13-1.55.38-2.27V6.58H1.25C.45 8.18 0 9.99 0 12s.45 3.82 1.25 5.42l4.03-3.15z"/><path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.33 0 3.27 2.57 1.25 6.58l4.03 3.15c.95-2.83 3.6-4.98 6.72-4.98z"/></svg>
+      </div>
+      <span class="shortcut-label">Google</span>
+    </a>
+  </div>
+
+  <!-- Search Bar -->
+  <div class="search-wrapper">
+    <form class="search-box" id="search-form" action="https://search.brave.com/search" method="GET">
+      <svg class="brave-lion" viewBox="0 0 48 48" fill="none">
+        <path d="M24 4L8 10L6 26C6 36 14 43 24 46C34 43 42 36 42 26L40 10L24 4Z" fill="#FB542B"/>
+        <path d="M24 10L14 14V24C14 30 18 36 24 38C30 36 34 30 34 24V14L24 10Z" fill="#FFFFFF"/>
+      </svg>
+      <input type="text" class="search-input" id="search-input" name="q" placeholder="Ask anything, find anything..." autocomplete="off" autofocus>
+    </form>
+  </div>
+
+  <!-- Credits -->
+  <div class="footer-credit">Photo by Benjamin Hibbert</div>
+  <a class="settings-btn" href="https://search.brave.com/">Brave Search</a>
+</div>
+
+<script>
+  const form = document.getElementById('search-form');
+  const input = document.getElementById('search-input');
+
+  form.addEventListener('submit', (e) => {
+    let q = input.value.trim();
+    if (!q) {
+      e.preventDefault();
+      return;
+    }
+    // If user enters a direct URL or domain, navigate directly
+    if (q.startsWith('http://') || q.startsWith('https://')) {
+      e.preventDefault();
+      window.location.href = q;
+    } else if (!q.includes(' ') && (q.includes('.com') || q.includes('.org') || q.includes('.net') || q.includes('.io') || q.includes('.co') || q.includes('.in') || q.includes('.edu') || q.includes('.gov') || q.includes('.me') || q.includes('.dev'))) {
+      e.preventDefault();
+      window.location.href = 'https://' + q;
+    }
+    // Otherwise let standard form submit to https://search.brave.com/search?q=...
+  });
+</script>
+</body>
+</html>

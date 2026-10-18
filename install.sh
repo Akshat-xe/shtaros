@@ -92,6 +92,8 @@ fi
 
 cp "$DAEMON_SRC/daemon.py" "$MEDIA_DIR/"
 cp "$DAEMON_SRC/requirements.txt" "$MEDIA_DIR/"
+cp "$DAEMON_SRC/newtab.html" "$MEDIA_DIR/" 2>/dev/null || true
+cp "$DAEMON_SRC/wallpaper.jpg" "$MEDIA_DIR/" 2>/dev/null || true
 
 VENV="$MEDIA_DIR/venv"
 if [[ ! -x "$VENV/bin/python3" ]] || ! "$VENV/bin/python3" -c 'import flask, yt_dlp, PIL, flask_cors' >/dev/null 2>&1; then

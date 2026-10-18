@@ -326,6 +326,34 @@ public class ShtarOSMod implements ClientModInitializer {
                     }
                     return 1;
                 }))
+                .then(ClientCommands.literal("browser").executes((CommandContext<FabricClientCommandSource> ctx) -> {
+                    Minecraft.getInstance().execute(() -> {
+                        Minecraft.getInstance().setScreenAndShow(new shtaros.browser.ShtarOSBrowserScreen());
+                    });
+                    return 1;
+                }))
+                .then(ClientCommands.literal("devtools").executes((CommandContext<FabricClientCommandSource> ctx) -> {
+                    Minecraft.getInstance().execute(ShtarOSBrowserBridge::openDevTools);
+                    return 1;
+                }))
+                .then(ClientCommands.literal("inspect").executes((CommandContext<FabricClientCommandSource> ctx) -> {
+                    Minecraft.getInstance().execute(ShtarOSBrowserBridge::openDevTools);
+                    return 1;
+                }))
+                .then(ClientCommands.literal("zoom")
+                    .then(ClientCommands.argument("percent", com.mojang.brigadier.arguments.IntegerArgumentType.integer(25, 300))
+                        .executes((CommandContext<FabricClientCommandSource> ctx) -> {
+                            int pct = com.mojang.brigadier.arguments.IntegerArgumentType.getInteger(ctx, "percent");
+                            Minecraft.getInstance().execute(() -> {
+                                ShtarOSBrowserBridge.setZoom(pct / 100.0);
+                                if (Minecraft.getInstance().player != null) {
+                                    Minecraft.getInstance().player.sendSystemMessage(Component.literal("§d[ShtarOS Browser] §aZoom set to " + pct + "%"));
+                                }
+                            });
+                            return 1;
+                        })
+                    )
+                )
                 .then(ClientCommands.literal("pause").executes((CommandContext<FabricClientCommandSource> ctx) -> {
                     ShtarOSCinemaManager.togglePause();
                     return 1;

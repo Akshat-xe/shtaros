@@ -86,35 +86,63 @@ public final class ShtarOSBrowserScreen extends Screen {
 
         // [+] New Tab button
         addRenderableWidget(Button.builder(Component.literal("+"), b -> {
-            ShtarOSBrowserBridge.newTab(ShtarOSBrowserBridge.HOME);
+            ShtarOSBrowserBridge.newTab(ShtarOSBrowserBridge.getHomeUrl());
             rebuildWidgets();
         }).bounds(tabX, TAB_BAR_Y, 20, TAB_HEIGHT).build());
 
         // 2. Navigation / Search Bar
         int x = MARGIN;
         back = addRenderableWidget(Button.builder(Component.literal("←"), b -> ShtarOSBrowserBridge.back())
-                .bounds(x, NAV_BAR_Y, 24, NAV_HEIGHT).build());
-        x += 27;
+                .bounds(x, NAV_BAR_Y, 22, NAV_HEIGHT).build());
+        x += 24;
         forward = addRenderableWidget(Button.builder(Component.literal("→"), b -> ShtarOSBrowserBridge.forward())
-                .bounds(x, NAV_BAR_Y, 24, NAV_HEIGHT).build());
-        x += 27;
+                .bounds(x, NAV_BAR_Y, 22, NAV_HEIGHT).build());
+        x += 24;
         addRenderableWidget(Button.builder(Component.literal("↻"), b -> ShtarOSBrowserBridge.reload())
-                .bounds(x, NAV_BAR_Y, 24, NAV_HEIGHT).build());
-        x += 27;
+                .bounds(x, NAV_BAR_Y, 22, NAV_HEIGHT).build());
+        x += 24;
         addRenderableWidget(Button.builder(Component.literal("🏠"), b -> ShtarOSBrowserBridge.home())
-                .bounds(x, NAV_BAR_Y, 28, NAV_HEIGHT).build());
-        x += 32;
+                .bounds(x, NAV_BAR_Y, 24, NAV_HEIGHT).build());
+        x += 28;
 
-        int rightWidth = 84;
-        address = addRenderableWidget(new EditBox(font, x, NAV_BAR_Y, Math.max(80, width - x - rightWidth - MARGIN), NAV_HEIGHT,
+        int rightWidth = 190;
+        int addrWidth = Math.max(60, width - x - rightWidth - MARGIN);
+        address = addRenderableWidget(new EditBox(font, x, NAV_BAR_Y, addrWidth, NAV_HEIGHT,
                 Component.literal("Search Brave or enter web URL...")));
         address.setMaxLength(2048);
         address.setValue(ShtarOSBrowserBridge.url());
 
-        addRenderableWidget(Button.builder(Component.literal("Go"), b -> navigate())
-                .bounds(width - MARGIN - 78, NAV_BAR_Y, 32, NAV_HEIGHT).build());
+        int rx = width - MARGIN;
+        rx -= 38;
         addRenderableWidget(Button.builder(Component.literal("Done"), b -> onClose())
-                .bounds(width - MARGIN - 42, NAV_BAR_Y, 42, NAV_HEIGHT).build());
+                .bounds(rx, NAV_BAR_Y, 38, NAV_HEIGHT).build());
+
+        rx -= 48;
+        addRenderableWidget(Button.builder(Component.literal("Inspect"), b -> ShtarOSBrowserBridge.openDevTools())
+                .bounds(rx, NAV_BAR_Y, 44, NAV_HEIGHT).build());
+
+        rx -= 17;
+        addRenderableWidget(Button.builder(Component.literal("+"), b -> {
+            ShtarOSBrowserBridge.zoomIn();
+            rebuildWidgets();
+        }).bounds(rx, NAV_BAR_Y, 15, NAV_HEIGHT).build());
+
+        rx -= 34;
+        String zoomStr = (int) Math.round(ShtarOSBrowserBridge.getZoom() * 100) + "%";
+        addRenderableWidget(Button.builder(Component.literal(zoomStr), b -> {
+            ShtarOSBrowserBridge.resetZoom();
+            rebuildWidgets();
+        }).bounds(rx, NAV_BAR_Y, 32, NAV_HEIGHT).build());
+
+        rx -= 17;
+        addRenderableWidget(Button.builder(Component.literal("-"), b -> {
+            ShtarOSBrowserBridge.zoomOut();
+            rebuildWidgets();
+        }).bounds(rx, NAV_BAR_Y, 15, NAV_HEIGHT).build());
+
+        rx -= 30;
+        addRenderableWidget(Button.builder(Component.literal("Go"), b -> navigate())
+                .bounds(rx, NAV_BAR_Y, 26, NAV_HEIGHT).build());
 
         resizeBrowser();
     }
@@ -245,10 +273,34 @@ public final class ShtarOSBrowserScreen extends Screen {
 
     @Override
     public boolean keyPressed(KeyEvent event) {
+        if (event.key() == InputConstants.KEY_F12) {
+            ShtarOSBrowserBridge.toggleDevTools();
+            return true;
+        }
+
         // Fast keyboard shortcuts
         if (event.hasControlDown()) {
+            if (event.key() == InputConstants.KEY_I && event.hasShiftDown()) {
+                ShtarOSBrowserBridge.toggleDevTools();
+                return true;
+            }
+            if (event.key() == InputConstants.KEY_MINUS) {
+                ShtarOSBrowserBridge.zoomOut();
+                rebuildWidgets();
+                return true;
+            }
+            if (event.key() == InputConstants.KEY_EQUALS || event.key() == InputConstants.KEY_NUMPADEQUALS) {
+                ShtarOSBrowserBridge.zoomIn();
+                rebuildWidgets();
+                return true;
+            }
+            if (event.key() == InputConstants.KEY_0 || event.key() == InputConstants.KEY_NUMPAD0) {
+                ShtarOSBrowserBridge.resetZoom();
+                rebuildWidgets();
+                return true;
+            }
             if (event.key() == InputConstants.KEY_T) {
-                ShtarOSBrowserBridge.newTab(ShtarOSBrowserBridge.HOME);
+                ShtarOSBrowserBridge.newTab(ShtarOSBrowserBridge.getHomeUrl());
                 rebuildWidgets();
                 return true;
             }

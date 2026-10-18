@@ -93,6 +93,22 @@ def health():
     })
 
 
+@app.route("/newtab", methods=["GET"])
+def newtab_page():
+    newtab_path = os.path.join(DIR, "newtab.html")
+    if os.path.exists(newtab_path):
+        return send_file(newtab_path, mimetype="text/html")
+    return redirect("https://search.brave.com/")
+
+
+@app.route("/wallpaper.jpg", methods=["GET"])
+def wallpaper_img():
+    wall_path = os.path.join(DIR, "wallpaper.jpg")
+    if os.path.exists(wall_path):
+        return send_file(wall_path, mimetype="image/jpeg")
+    return ("", 404)
+
+
 @app.route("/search", methods=["GET"])
 def search():
     query = request.args.get("q", "").strip()
