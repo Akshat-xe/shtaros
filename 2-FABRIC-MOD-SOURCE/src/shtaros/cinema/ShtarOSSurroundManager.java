@@ -233,32 +233,6 @@ public final class ShtarOSSurroundManager {
         ShtarOSSpeakerFeed current = feed;
         if (current == null) return;
         onSoundThread(() -> pumpChannels(current, validMask));
-
-        // When cinema surround audio is actively playing and not paused, emit colorful music notes & beat pulses
-        if (started && playing && !ShtarOSCinemaManager.isPaused()) {
-            particleTickCounter++;
-            if (particleTickCounter % 4 == 0) {
-                for (SpeakerInfo speaker : speakers) {
-                    if (speaker.channel != null && valid(speaker, mc)) {
-                        BlockPos pos = speaker.pos;
-                        if (mc.player != null && mc.player.distanceToSqr(pos.getX() + 0.5, pos.getY() + 0.5, pos.getZ() + 0.5) < 48 * 48) {
-                            java.util.concurrent.ThreadLocalRandom rng = java.util.concurrent.ThreadLocalRandom.current();
-                            double px = pos.getX() + 0.5 + (rng.nextDouble() - 0.5) * 0.35;
-                            double py = pos.getY() + 1.15;
-                            double pz = pos.getZ() + 0.5 + (rng.nextDouble() - 0.5) * 0.35;
-                            // Rainbow color varying by speaker role and rhythmic beat
-                            double noteColor = ((speaker.role.ordinal() * 3 + (particleTickCounter / 4)) % 25) / 24.0;
-                            mc.level.addParticle(ParticleTypes.NOTE, px, py, pz, noteColor, 0.0, 0.0);
-
-                            // Musical pulse glow ring on every 12th tick
-                            if (particleTickCounter % 12 == 0) {
-                                mc.level.addParticle(ParticleTypes.GLOW, px, py + 0.05, pz, 0.0, 0.03, 0.0);
-                            }
-                        }
-                    }
-                }
-            }
-        }
     }
 
     private static void pumpChannels(ShtarOSSpeakerFeed current, int validMask) {

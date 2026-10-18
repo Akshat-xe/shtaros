@@ -386,22 +386,17 @@ public class ShtarOSSpatialManager {
                 continue;
             }
 
-            // 2. Update streaming buffers & emit music beat particles
+            // 2. Update streaming buffers & emit gentle music note particle (vanilla rhythm: once per second)
             if (!pb.paused && pb.channel != null) {
                 particleTickCounter++;
-                if (particleTickCounter % 4 == 0) {
-                    if (mc.player != null && mc.player.distanceToSqr(pos.getX() + 0.5, pos.getY() + 0.5, pos.getZ() + 0.5) < 48 * 48) {
+                if (particleTickCounter % 20 == 0) {
+                    if (mc.player != null && mc.player.distanceToSqr(pos.getX() + 0.5, pos.getY() + 0.5, pos.getZ() + 0.5) < 32 * 32) {
                         java.util.concurrent.ThreadLocalRandom rng = java.util.concurrent.ThreadLocalRandom.current();
-                        double px = pos.getX() + 0.5 + (rng.nextDouble() - 0.5) * 0.35;
-                        double py = pos.getY() + 1.15;
-                        double pz = pos.getZ() + 0.5 + (rng.nextDouble() - 0.5) * 0.35;
+                        double px = pos.getX() + 0.5 + (rng.nextDouble() - 0.5) * 0.2;
+                        double py = pos.getY() + 1.2;
+                        double pz = pos.getZ() + 0.5 + (rng.nextDouble() - 0.5) * 0.2;
                         double noteColor = rng.nextInt(25) / 24.0;
                         mc.level.addParticle(ParticleTypes.NOTE, px, py, pz, noteColor, 0.0, 0.0);
-
-                        // Musical beat pulse glow ring on every 12th tick
-                        if (particleTickCounter % 12 == 0) {
-                            mc.level.addParticle(ParticleTypes.GLOW, px, py + 0.05, pz, 0.0, 0.03, 0.0);
-                        }
                     }
                 }
 

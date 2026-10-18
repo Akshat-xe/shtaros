@@ -247,6 +247,7 @@ echo "   ✅ Installed $(ls -1 "$SHTAROS_MODS_DIR"/*.jar | wc -l | tr -d ' ') mo
 # 10. Install Shaderpacks & Iris Configuration
 if [[ -d "$ROOT/shaderpacks" ]]; then
     mkdir -p "$GAME_DIR/shaderpacks" "$GAME_DIR/config"
+    rm -f "$GAME_DIR/shaderpacks"/BakedPotato*.zip "$GAME_DIR/shaderpacks"/RenderPearl*.zip
     cp "$ROOT/shaderpacks"/*.zip "$GAME_DIR/shaderpacks/" 2>/dev/null || true
     echo "   ✅ Installed shaderpacks into $GAME_DIR/shaderpacks"
     if [[ ! -f "$GAME_DIR/config/iris.properties" ]]; then
@@ -258,9 +259,9 @@ disableUpdateMessage=false
 enableDebugOptions=false
 enableShaders=true
 maxShadowRenderDistance=32
-shaderPack=MakeUp-UltraFast-9.5g.zip
+shaderPack=BSL_v10.1.8.zip
 EOF
-        echo "   ✅ Configured default shaderpack: MakeUp-UltraFast (macOS Metal & cross-platform optimized)"
+        echo "   ✅ Configured default shaderpack: BSL Shaders (BSL_v10.1.8.zip)"
     fi
 fi
 

@@ -130,9 +130,17 @@ public final class ShtarOSBrowserSurroundFeed implements ShtarOSSpeakerFeed {
         for (ArrayBlockingQueue<byte[]> queue : queues) queue.clear();
     }
 
+    private static final ByteBuffer STATIC_SILENCE_BUFFER;
+    static {
+        STATIC_SILENCE_BUFFER = ByteBuffer.allocateDirect(4096).order(ByteOrder.LITTLE_ENDIAN);
+        for (int i = 0; i < 2048; i++) STATIC_SILENCE_BUFFER.putShort((short) 0);
+        STATIC_SILENCE_BUFFER.flip();
+    }
+
     private final class SpeakerStream implements AudioStream {
         private final int index;
         private final AudioFormat format;
+        private final ByteBuffer streamBuffer = ByteBuffer.allocateDirect(MAX_STREAM_BUFFER_BYTES).order(ByteOrder.LITTLE_ENDIAN);
         private byte[] pending;
         private int offset;
         private boolean fadingIn;
@@ -150,45 +158,42 @@ public final class ShtarOSBrowserSurroundFeed implements ShtarOSSpeakerFeed {
         @Override public ByteBuffer read(int size) throws IOException {
             if (closed) return null;
             int target = Math.max(2048, Math.min(size & ~1, MAX_STREAM_BUFFER_BYTES));
-            ByteBuffer buffer = ByteBuffer.allocateDirect(target).order(ByteOrder.LITTLE_ENDIAN);
-            while (buffer.hasRemaining() && !closed) {
+            streamBuffer.clear();
+            streamBuffer.limit(target);
+
+            while (streamBuffer.hasRemaining() && !closed) {
                 if (pending == null || offset == pending.length) {
-                    try {
-                        pending = queues[index].poll(buffer.position() > 0 ? 0 : 35, TimeUnit.MILLISECONDS);
-                    } catch (InterruptedException e) {
-                        break;
-                    }
+                    pending = queues[index].poll();
                     offset = 0;
                     if (pending == null) break;
                 }
-                int n = Math.min(buffer.remaining(), pending.length - offset);
-                buffer.put(pending, offset, n);
+                int n = Math.min(streamBuffer.remaining(), pending.length - offset);
+                streamBuffer.put(pending, offset, n);
                 offset += n;
             }
-            int audioBytes = buffer.position();
+
+            int audioBytes = streamBuffer.position();
             if (index == 0) framesRead += audioBytes / 2;
             if (audioBytes == 0) {
                 if (index == 0) emptyReads++;
                 if (finished) return null;
                 if (!closed) {
-                    // Safe 4096-byte silence cushion (46ms) to keep OpenAL hardware playing without underrun stutter
-                    ByteBuffer silence = ByteBuffer.allocateDirect(4096).order(ByteOrder.LITTLE_ENDIAN);
-                    for (int i = 0; i < 2048; i++) silence.putShort((short) 0);
-                    silence.flip();
-                    return silence;
+                    return STATIC_SILENCE_BUFFER.duplicate();
                 }
                 return null;
             }
-            if (audioBytes > 0 && fadingIn) fade(buffer, 0, Math.min(128, audioBytes / 2), true);
+
+            if (fadingIn) fade(streamBuffer, 0, Math.min(128, audioBytes / 2), true);
             if (audioBytes < target) {
-                if (audioBytes > 0) fade(buffer, audioBytes / 2 - Math.min(128, audioBytes / 2),
+                fade(streamBuffer, audioBytes / 2 - Math.min(128, audioBytes / 2),
                         Math.min(128, audioBytes / 2), false);
                 fadingIn = true;
             } else {
                 fadingIn = false;
             }
-            buffer.flip();
-            return buffer;
+
+            streamBuffer.flip();
+            return streamBuffer.duplicate();
         }
 
         private void fade(ByteBuffer buffer, int firstFrame, int frames, boolean fadeIn) {

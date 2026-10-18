@@ -60,21 +60,7 @@ public class ShtarOSMod implements ClientModInitializer {
             int w = client.getWindow().getGuiScaledWidth();
             int h = client.getWindow().getGuiScaledHeight();
 
-            // 1. Sleek Top Bar HUD when browser is active in-world
-            ShtarOSBrowserBridge.BrowserTab activeTab = ShtarOSBrowserBridge.getActiveTab();
-            if (activeTab != null && (shtaros.browser.ShtarOSScreenRaycast.getLatestHit() != null || ShtarOSBrowserBridge.isTypingMode())) {
-                String tabTitle = activeTab.getTitle();
-                int tabIdx = ShtarOSBrowserBridge.getActiveTabIndex() + 1;
-                int totalTabs = ShtarOSBrowserBridge.getTabs().size();
-                String topText = "§b[Tab " + tabIdx + "/" + totalTabs + ": " + tabTitle + "] §7" + activeTab.getUrl()
-                        + " §8| §f[Shift+RClick] Tabs & Controls";
-                int topW = client.font.width(topText);
-                int barX = (w - topW) / 2 - 8;
-                graphics.fill(barX, 4, barX + topW + 16, 20, 0xD0141918);
-                graphics.text(client.font, Component.literal(topText), (w - topW) / 2, 8, 0xFFFFFFFF);
-            }
-
-            // 2. Clean, non-intrusive indicator only when typing mode is active
+            // Clean, non-intrusive indicator only when typing mode is active
             if (ShtarOSBrowserBridge.isTypingMode()) {
                 String text = "§a⌨ Typing Mode Active §7(Press F8 or Esc to walk)";
                 int textW = client.font.width(text);

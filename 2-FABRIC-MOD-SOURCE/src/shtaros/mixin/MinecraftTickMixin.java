@@ -42,16 +42,9 @@ public class MinecraftTickMixin {
             try {
                 if (mc.mouseHandler.isMouseGrabbed()) {
                     mc.mouseHandler.releaseMouse();
-                }
-                if (!org.lwjgl.sdl.SDLMouse.SDL_CursorVisible()) {
-                    org.lwjgl.sdl.SDLMouse.SDL_ShowCursor();
-                }
-                long winHandle = mc.getWindow().handle();
-                org.lwjgl.sdl.SDLMouse.SDL_SetWindowRelativeMouseMode(winHandle, false);
-                if (mc.mouseHandler.xpos() < 0 || mc.mouseHandler.ypos() < 0
-                        || mc.mouseHandler.xpos() > mc.getWindow().getScreenWidth()
-                        || mc.mouseHandler.ypos() > mc.getWindow().getScreenHeight()) {
-                    mc.mouseHandler.resyncMousePosition();
+                    if (!org.lwjgl.sdl.SDLMouse.SDL_CursorVisible()) {
+                        org.lwjgl.sdl.SDLMouse.SDL_ShowCursor();
+                    }
                 }
             } catch (Throwable ignored) {}
 

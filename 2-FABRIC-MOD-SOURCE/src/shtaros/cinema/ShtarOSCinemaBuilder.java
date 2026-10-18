@@ -76,38 +76,82 @@ public final class ShtarOSCinemaBuilder {
         placeSpeaker(level, center.relative(front, -10).relative(right, -5));
         placeSpeaker(level, center.relative(front, -10).relative(right, 5));
 
-        // --- Upgraded Luxury Cinema Sofa Lounge ---
-        // Row 1: Front lounge sofa (5 seats wide with blackstone armrests)
-        for (int x = -2; x <= 2; x++) {
-            BlockPos seat = center.relative(right, x).relative(front, -2);
-            level.setBlockAndUpdate(seat, Blocks.POLISHED_BLACKSTONE.defaultBlockState());
-            level.setBlockAndUpdate(seat.above(), Blocks.DARK_OAK_STAIRS.defaultBlockState().setValue(StairBlock.FACING, front));
+        // --- Upgraded Cozy Luxury Cinema Sofa Lounge & Decor ---
+        // Floor foundation under Row 1
+        for (int x = -4; x <= 4; x++) {
+            BlockPos floor = center.relative(right, x).relative(front, -2);
+            level.setBlockAndUpdate(floor, Blocks.SPRUCE_PLANKS.defaultBlockState());
         }
-        // Armrests Row 1
-        level.setBlockAndUpdate(center.relative(right, -3).relative(front, -2), Blocks.POLISHED_BLACKSTONE.defaultBlockState());
-        level.setBlockAndUpdate(center.relative(right, -3).relative(front, -2).above(), Blocks.POLISHED_BLACKSTONE.defaultBlockState());
-        level.setBlockAndUpdate(center.relative(right, 3).relative(front, -2), Blocks.POLISHED_BLACKSTONE.defaultBlockState());
-        level.setBlockAndUpdate(center.relative(right, 3).relative(front, -2).above(), Blocks.POLISHED_BLACKSTONE.defaultBlockState());
+
+        // Row 1: Front lounge sofa (5 seats wide with curved cozy spruce armrests)
+        for (int x = -2; x <= 2; x++) {
+            BlockPos seat = center.relative(right, x).relative(front, -2).above();
+            level.setBlockAndUpdate(seat, Blocks.SPRUCE_STAIRS.defaultBlockState().setValue(StairBlock.FACING, front));
+        }
+        // Inward-facing armrests Row 1
+        level.setBlockAndUpdate(center.relative(right, -3).relative(front, -2).above(),
+                Blocks.SPRUCE_STAIRS.defaultBlockState().setValue(StairBlock.FACING, right));
+        level.setBlockAndUpdate(center.relative(right, 3).relative(front, -2).above(),
+                Blocks.SPRUCE_STAIRS.defaultBlockState().setValue(StairBlock.FACING, right.getOpposite()));
+
+        // Side end-tables with flowers and warm lantern for Row 1
+        BlockPos leftTable = center.relative(right, -4).relative(front, -2).above();
+        BlockPos rightTable = center.relative(right, 4).relative(front, -2).above();
+        level.setBlockAndUpdate(leftTable, Blocks.BOOKSHELF.defaultBlockState());
+        level.setBlockAndUpdate(leftTable.above(), Blocks.POTTED_RED_TULIP.defaultBlockState());
+        level.setBlockAndUpdate(rightTable, Blocks.BOOKSHELF.defaultBlockState());
+        level.setBlockAndUpdate(rightTable.above(), Blocks.LANTERN.defaultBlockState());
+
+        // Center Coffee Table & potted flowers in front of Row 1
+        BlockPos coffeeLeft = center.relative(right, -1).relative(front, -1);
+        BlockPos coffeeMid = center.relative(front, -1);
+        BlockPos coffeeRight = center.relative(right, 1).relative(front, -1);
+        level.setBlockAndUpdate(coffeeLeft, Blocks.SPRUCE_PLANKS.defaultBlockState());
+        level.setBlockAndUpdate(coffeeMid, Blocks.SPRUCE_PLANKS.defaultBlockState());
+        level.setBlockAndUpdate(coffeeRight, Blocks.SPRUCE_PLANKS.defaultBlockState());
+        level.setBlockAndUpdate(coffeeLeft.above(), Blocks.POTTED_FERN.defaultBlockState());
+        level.setBlockAndUpdate(coffeeMid.above(), Blocks.LANTERN.defaultBlockState());
+        level.setBlockAndUpdate(coffeeRight.above(), Blocks.POTTED_CORNFLOWER.defaultBlockState());
+
+        // Plush Red Carpet runner in front aisle
+        for (int x = -3; x <= 3; x++) {
+            BlockPos carpetPos = center.relative(right, x).relative(front, 0);
+            level.setBlockAndUpdate(carpetPos, Blocks.CARPET.red().defaultBlockState());
+            BlockPos carpetPos2 = center.relative(right, x).relative(front, 1);
+            level.setBlockAndUpdate(carpetPos2, Blocks.CARPET.red().defaultBlockState());
+        }
 
         // Row 2: Raised VIP Riser Sofa (elevated 1 block for unobstructed view)
-        for (int x = -3; x <= 3; x++) {
+        for (int x = -4; x <= 4; x++) {
             for (int z = -6; z <= -4; z++) {
                 BlockPos floor = center.relative(right, x).relative(front, z);
-                level.setBlockAndUpdate(floor, Blocks.POLISHED_BLACKSTONE.defaultBlockState());
-                level.setBlockAndUpdate(floor.above(), Blocks.POLISHED_BLACKSTONE.defaultBlockState());
+                level.setBlockAndUpdate(floor, Blocks.SPRUCE_PLANKS.defaultBlockState());
+                level.setBlockAndUpdate(floor.above(), Blocks.SPRUCE_PLANKS.defaultBlockState());
             }
         }
         for (int x = -2; x <= 2; x++) {
             BlockPos seat = center.relative(right, x).relative(front, -5);
-            level.setBlockAndUpdate(seat.above(2), Blocks.DARK_OAK_STAIRS.defaultBlockState().setValue(StairBlock.FACING, front));
+            level.setBlockAndUpdate(seat.above(2), Blocks.SPRUCE_STAIRS.defaultBlockState().setValue(StairBlock.FACING, front));
         }
         // VIP Armrests
-        level.setBlockAndUpdate(center.relative(right, -3).relative(front, -5).above(2), Blocks.POLISHED_BLACKSTONE.defaultBlockState());
-        level.setBlockAndUpdate(center.relative(right, 3).relative(front, -5).above(2), Blocks.POLISHED_BLACKSTONE.defaultBlockState());
+        level.setBlockAndUpdate(center.relative(right, -3).relative(front, -5).above(2),
+                Blocks.SPRUCE_STAIRS.defaultBlockState().setValue(StairBlock.FACING, right));
+        level.setBlockAndUpdate(center.relative(right, 3).relative(front, -5).above(2),
+                Blocks.SPRUCE_STAIRS.defaultBlockState().setValue(StairBlock.FACING, right.getOpposite()));
+
+        // VIP Side Tables with warm decor
+        BlockPos vipLeftTable = center.relative(right, -4).relative(front, -5).above(2);
+        BlockPos vipRightTable = center.relative(right, 4).relative(front, -5).above(2);
+        level.setBlockAndUpdate(vipLeftTable, Blocks.BOOKSHELF.defaultBlockState());
+        level.setBlockAndUpdate(vipLeftTable.above(), Blocks.LANTERN.defaultBlockState());
+        level.setBlockAndUpdate(vipRightTable, Blocks.BOOKSHELF.defaultBlockState());
+        level.setBlockAndUpdate(vipRightTable.above(), Blocks.POTTED_RED_TULIP.defaultBlockState());
 
         // Smooth Side Access Stairs to VIP Riser
-        level.setBlockAndUpdate(center.relative(right, -4).relative(front, -5), Blocks.POLISHED_BLACKSTONE_STAIRS.defaultBlockState().setValue(StairBlock.FACING, right.getOpposite()));
-        level.setBlockAndUpdate(center.relative(right, 4).relative(front, -5), Blocks.POLISHED_BLACKSTONE_STAIRS.defaultBlockState().setValue(StairBlock.FACING, right));
+        level.setBlockAndUpdate(center.relative(right, -4).relative(front, -3).above(),
+                Blocks.SPRUCE_STAIRS.defaultBlockState().setValue(StairBlock.FACING, front.getOpposite()));
+        level.setBlockAndUpdate(center.relative(right, 4).relative(front, -3).above(),
+                Blocks.SPRUCE_STAIRS.defaultBlockState().setValue(StairBlock.FACING, front.getOpposite()));
 
         mc.execute(() -> {
             ShtarOSCinemaManager.setScreen(screenMin, screenMax, front.getOpposite());
@@ -219,32 +263,78 @@ public final class ShtarOSCinemaBuilder {
             blocks.put(floor.above(), Blocks.NOTE_BLOCK.defaultBlockState());
         }
 
-        // Row 1
-        for (int x = -2; x <= 2; x++) {
-            BlockPos seat = center.relative(right, x).relative(front, -2);
-            blocks.put(seat, Blocks.POLISHED_BLACKSTONE.defaultBlockState());
-            blocks.put(seat.above(), Blocks.DARK_OAK_STAIRS.defaultBlockState().setValue(StairBlock.FACING, front));
+        // Floor foundation under Row 1
+        for (int x = -4; x <= 4; x++) {
+            blocks.put(center.relative(right, x).relative(front, -2), Blocks.SPRUCE_PLANKS.defaultBlockState());
         }
-        blocks.put(center.relative(right, -3).relative(front, -2), Blocks.POLISHED_BLACKSTONE.defaultBlockState());
-        blocks.put(center.relative(right, -3).relative(front, -2).above(), Blocks.POLISHED_BLACKSTONE.defaultBlockState());
-        blocks.put(center.relative(right, 3).relative(front, -2), Blocks.POLISHED_BLACKSTONE.defaultBlockState());
-        blocks.put(center.relative(right, 3).relative(front, -2).above(), Blocks.POLISHED_BLACKSTONE.defaultBlockState());
 
-        // Row 2 VIP
+        // Row 1: Front lounge sofa (5 seats wide with curved cozy spruce armrests)
+        for (int x = -2; x <= 2; x++) {
+            blocks.put(center.relative(right, x).relative(front, -2).above(),
+                    Blocks.SPRUCE_STAIRS.defaultBlockState().setValue(StairBlock.FACING, front));
+        }
+        // Inward-facing armrests Row 1
+        blocks.put(center.relative(right, -3).relative(front, -2).above(),
+                Blocks.SPRUCE_STAIRS.defaultBlockState().setValue(StairBlock.FACING, right));
+        blocks.put(center.relative(right, 3).relative(front, -2).above(),
+                Blocks.SPRUCE_STAIRS.defaultBlockState().setValue(StairBlock.FACING, right.getOpposite()));
+
+        // Side end-tables with flowers and warm lantern for Row 1
+        BlockPos leftTable = center.relative(right, -4).relative(front, -2).above();
+        BlockPos rightTable = center.relative(right, 4).relative(front, -2).above();
+        blocks.put(leftTable, Blocks.BOOKSHELF.defaultBlockState());
+        blocks.put(leftTable.above(), Blocks.POTTED_RED_TULIP.defaultBlockState());
+        blocks.put(rightTable, Blocks.BOOKSHELF.defaultBlockState());
+        blocks.put(rightTable.above(), Blocks.LANTERN.defaultBlockState());
+
+        // Center Coffee Table & potted flowers in front of Row 1
+        BlockPos coffeeLeft = center.relative(right, -1).relative(front, -1);
+        BlockPos coffeeMid = center.relative(front, -1);
+        BlockPos coffeeRight = center.relative(right, 1).relative(front, -1);
+        blocks.put(coffeeLeft, Blocks.SPRUCE_PLANKS.defaultBlockState());
+        blocks.put(coffeeMid, Blocks.SPRUCE_PLANKS.defaultBlockState());
+        blocks.put(coffeeRight, Blocks.SPRUCE_PLANKS.defaultBlockState());
+        blocks.put(coffeeLeft.above(), Blocks.POTTED_FERN.defaultBlockState());
+        blocks.put(coffeeMid.above(), Blocks.LANTERN.defaultBlockState());
+        blocks.put(coffeeRight.above(), Blocks.POTTED_CORNFLOWER.defaultBlockState());
+
+        // Plush Red Carpet runner in front aisle
         for (int x = -3; x <= 3; x++) {
+            blocks.put(center.relative(right, x).relative(front, 0), Blocks.CARPET.red().defaultBlockState());
+            blocks.put(center.relative(right, x).relative(front, 1), Blocks.CARPET.red().defaultBlockState());
+        }
+
+        // Row 2: Raised VIP Riser Sofa (elevated 1 block for unobstructed view)
+        for (int x = -4; x <= 4; x++) {
             for (int z = -6; z <= -4; z++) {
                 BlockPos floor = center.relative(right, x).relative(front, z);
-                blocks.put(floor, Blocks.POLISHED_BLACKSTONE.defaultBlockState());
-                blocks.put(floor.above(), Blocks.POLISHED_BLACKSTONE.defaultBlockState());
+                blocks.put(floor, Blocks.SPRUCE_PLANKS.defaultBlockState());
+                blocks.put(floor.above(), Blocks.SPRUCE_PLANKS.defaultBlockState());
             }
         }
         for (int x = -2; x <= 2; x++) {
-            blocks.put(center.relative(right, x).relative(front, -5).above(2), Blocks.DARK_OAK_STAIRS.defaultBlockState().setValue(StairBlock.FACING, front));
+            blocks.put(center.relative(right, x).relative(front, -5).above(2),
+                    Blocks.SPRUCE_STAIRS.defaultBlockState().setValue(StairBlock.FACING, front));
         }
-        blocks.put(center.relative(right, -3).relative(front, -5).above(2), Blocks.POLISHED_BLACKSTONE.defaultBlockState());
-        blocks.put(center.relative(right, 3).relative(front, -5).above(2), Blocks.POLISHED_BLACKSTONE.defaultBlockState());
-        blocks.put(center.relative(right, -4).relative(front, -5), Blocks.POLISHED_BLACKSTONE_STAIRS.defaultBlockState().setValue(StairBlock.FACING, right.getOpposite()));
-        blocks.put(center.relative(right, 4).relative(front, -5), Blocks.POLISHED_BLACKSTONE_STAIRS.defaultBlockState().setValue(StairBlock.FACING, right));
+        // VIP Armrests
+        blocks.put(center.relative(right, -3).relative(front, -5).above(2),
+                Blocks.SPRUCE_STAIRS.defaultBlockState().setValue(StairBlock.FACING, right));
+        blocks.put(center.relative(right, 3).relative(front, -5).above(2),
+                Blocks.SPRUCE_STAIRS.defaultBlockState().setValue(StairBlock.FACING, right.getOpposite()));
+
+        // VIP Side Tables with warm decor
+        BlockPos vipLeftTable = center.relative(right, -4).relative(front, -5).above(2);
+        BlockPos vipRightTable = center.relative(right, 4).relative(front, -5).above(2);
+        blocks.put(vipLeftTable, Blocks.BOOKSHELF.defaultBlockState());
+        blocks.put(vipLeftTable.above(), Blocks.LANTERN.defaultBlockState());
+        blocks.put(vipRightTable, Blocks.BOOKSHELF.defaultBlockState());
+        blocks.put(vipRightTable.above(), Blocks.POTTED_RED_TULIP.defaultBlockState());
+
+        // Smooth Side Access Stairs to VIP Riser
+        blocks.put(center.relative(right, -4).relative(front, -3).above(),
+                Blocks.SPRUCE_STAIRS.defaultBlockState().setValue(StairBlock.FACING, front.getOpposite()));
+        blocks.put(center.relative(right, 4).relative(front, -3).above(),
+                Blocks.SPRUCE_STAIRS.defaultBlockState().setValue(StairBlock.FACING, front.getOpposite()));
 
         return blocks;
     }
@@ -338,6 +428,26 @@ public final class ShtarOSCinemaBuilder {
             clearIf(level, old14.relative(right, x).above(y), Blocks.SEA_LANTERN);
         for (int x = -7; x <= 6; x++) for (int y = 1; y <= 8; y++)
             clearIf(level, old14.relative(right, x).above(y), Blocks.POLISHED_BLACKSTONE);
+
+        // Clear previous lounge furniture if present
+        for (int x = -6; x <= 6; x++) {
+            for (int z = -8; z <= 2; z++) {
+                for (int y = 0; y <= 4; y++) {
+                    BlockPos p = center.relative(right, x).relative(front, z).above(y);
+                    clearIf(level, p, Blocks.POLISHED_BLACKSTONE);
+                    clearIf(level, p, Blocks.POLISHED_BLACKSTONE_STAIRS);
+                    clearIf(level, p, Blocks.DARK_OAK_STAIRS);
+                    clearIf(level, p, Blocks.SPRUCE_STAIRS);
+                    clearIf(level, p, Blocks.SPRUCE_PLANKS);
+                    clearIf(level, p, Blocks.BOOKSHELF);
+                    clearIf(level, p, Blocks.LANTERN);
+                    clearIf(level, p, Blocks.CARPET.red());
+                    clearIf(level, p, Blocks.POTTED_RED_TULIP);
+                    clearIf(level, p, Blocks.POTTED_CORNFLOWER);
+                    clearIf(level, p, Blocks.POTTED_FERN);
+                }
+            }
+        }
     }
 
     private static void clearIf(ServerLevel level, BlockPos pos, net.minecraft.world.level.block.Block block) {
